@@ -70,6 +70,18 @@ function roulette.placeBet()
         return
     end
 
+    if key:sub(1, 4) == "doz-" then
+        local count = 0
+        for k, _ in pairs(roulette.bets) do
+            if k:sub(1, 4) == "doz-" then count = count + 1 end
+        end
+        if not roulette.bets[key] and count >= 2 then
+            audio.play("fail")
+            roulette.statusText = "CANNOT BET ALL 3 DOZENS AT ONCE!"
+            return
+        end
+    end
+
     if economy.spend(amt) then
         roulette.bets[key] = (roulette.bets[key] or 0) + amt
         audio.play("coin")
@@ -269,28 +281,45 @@ function roulette.finishSpin()
     table.insert(roulette.history, 1, num)
     if #roulette.history > 6 then table.remove(roulette.history) end
 
-    -- Выплаты
+    local totalBet = roulette.getTotalBet()
+
+    -- Выплаты по стандартным европейским правилам:
     local payout = 0
     local key = tostring(num)
+    -- 1. Прямая ставка (Straight-Up 35:1 -> возврат 36x)
     if roulette.bets[key] then payout = payout + roulette.bets[key] * 36 end
-    if red and roulette.bets["red"] then payout = payout + roulette.bets["red"] * 2 end
-    if not red and num ~= 0 and roulette.bets["black"] then payout = payout + roulette.bets["black"] * 2 end
+
     if num ~= 0 then
+        -- 2. Равные шансы (Even Money 1:1 -> возврат 2x)
+        if red and roulette.bets["red"] then payout = payout + roulette.bets["red"] * 2 end
+        if not red and roulette.bets["black"] then payout = payout + roulette.bets["black"] * 2 end
         if num % 2 == 0 and roulette.bets["even"] then payout = payout + roulette.bets["even"] * 2 end
         if num % 2 ~= 0 and roulette.bets["odd"] then payout = payout + roulette.bets["odd"] * 2 end
         if num <= 18 and roulette.bets["low"] then payout = payout + roulette.bets["low"] * 2 end
         if num >= 19 and roulette.bets["high"] then payout = payout + roulette.bets["high"] * 2 end
+
+        -- 3. Дюжины (Dozens 2:1 -> возврат 3x)
+        if num >= 1 and num <= 12 and roulette.bets["doz-1"] then payout = payout + roulette.bets["doz-1"] * 3 end
+        if num >= 13 and num <= 24 and roulette.bets["doz-2"] then payout = payout + roulette.bets["doz-2"] * 3 end
+        if num >= 25 and num <= 36 and roulette.bets["doz-3"] then payout = payout + roulette.bets["doz-3"] * 3 end
     end
-    if num >= 1 and num <= 12 and roulette.bets["doz-1"] then payout = payout + roulette.bets["doz-1"] * 3 end
-    if num >= 13 and num <= 24 and roulette.bets["doz-2"] then payout = payout + roulette.bets["doz-2"] * 3 end
-    if num >= 25 and num <= 36 and roulette.bets["doz-3"] then payout = payout + roulette.bets["doz-3"] * 3 end
+
+    local netProfit = payout - totalBet
 
     if payout > 0 then
         economy.add(payout)
-        roulette.statusText = string.format("★ %d (%s)! +%s ★", num, colName, economy.format(payout))
-        audio.play("win")
+        if netProfit > 0 then
+            roulette.statusText = string.format("★ %d %s! WON %s (+%s) ★", num, colName, economy.format(payout), economy.format(netProfit))
+            audio.play("win")
+        elseif netProfit == 0 then
+            roulette.statusText = string.format("★ %d %s! PUSH %s ★", num, colName, economy.format(payout))
+            audio.play("click")
+        else
+            roulette.statusText = string.format("★ %d %s! RETURN %s (-%s) ★", num, colName, economy.format(payout), economy.format(math.abs(netProfit)))
+            audio.play("click")
+        end
     else
-        roulette.statusText = string.format("★ %d (%s) ★", num, colName)
+        roulette.statusText = string.format("★ %d %s! LOST -%s ★", num, colName, economy.format(totalBet))
         audio.play("fail")
     end
 
@@ -299,14 +328,28 @@ function roulette.finishSpin()
 end
 
 local function drawGrid(alpha)
-    love.graphics.setColor(0.1, 0.45, 0.15, alpha)
     local tx, ty = 340, 140
-    local cellW, cellH = 48, 60
+    local cellW, cellH = 48, 56
+    local totalW = cellW * 12 + 22
 
-    love.graphics.rectangle("fill", tx, ty, cellW * 12 + 22, 38, 4)
+    -- 1. Сектор 0 ZERO (35:1)
+    love.graphics.setColor(0.1, 0.45, 0.15, alpha)
+    love.graphics.rectangle("fill", tx, ty, totalW, 36, 4)
     love.graphics.setColor(1, 1, 1, alpha)
-    love.graphics.print("0 ZERO (35:1)", tx + 240, ty + 12)
+    love.graphics.print("0 ZERO (35:1)", tx + 240, ty + 10)
 
+    if roulette.cursorRow == 1 then
+        love.graphics.setColor(1, 0.88, 0.2, alpha)
+        love.graphics.setLineWidth(3)
+        love.graphics.rectangle("line", tx - 2, ty - 2, totalW + 4, 40, 4)
+        love.graphics.setLineWidth(1)
+    end
+    if roulette.bets["0"] then
+        love.graphics.setColor(1, 0.85, 0.2, alpha)
+        love.graphics.circle("fill", tx + totalW - 14, ty + 18, 8)
+    end
+
+    -- 2. Сетка чисел 1-36 (3 строки по 12)
     local rows = {
         { 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36 },
         { 2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35 },
@@ -315,7 +358,7 @@ local function drawGrid(alpha)
     for rowIdx, row in ipairs(rows) do
         for colIdx, num in ipairs(row) do
             local x = tx + (colIdx - 1) * (cellW + 2)
-            local y = ty + 44 + (rowIdx - 1) * (cellH + 2)
+            local y = ty + 40 + (rowIdx - 1) * (cellH + 2)
 
             if isRed(num) then
                 love.graphics.setColor(0.7, 0.15, 0.1, alpha)
@@ -325,7 +368,7 @@ local function drawGrid(alpha)
             love.graphics.rectangle("fill", x, y, cellW, cellH, 3)
 
             love.graphics.setColor(1, 1, 1, alpha)
-            love.graphics.print(tostring(num), x + 16, y + 22)
+            love.graphics.print(tostring(num), x + 16, y + 20)
 
             if roulette.cursorRow == rowIdx + 1 and roulette.cursorCol == colIdx then
                 love.graphics.setColor(1, 0.88, 0.2, alpha)
@@ -338,6 +381,69 @@ local function drawGrid(alpha)
                 love.graphics.setColor(1, 0.85, 0.2, alpha)
                 love.graphics.circle("fill", x + cellW - 12, y + 12, 8)
             end
+        end
+    end
+
+    -- 3. Дюжины: 1ST 12, 2ND 12, 3RD 12 (2:1)
+    local dozY = ty + 40 + 3 * (cellH + 2) + 2
+    local dozW = (totalW - 4) / 3
+    local dozH = 34
+    local dozDefs = {
+        { key = "doz-1", label = "1ST 12 (2:1)" },
+        { key = "doz-2", label = "2ND 12 (2:1)" },
+        { key = "doz-3", label = "3RD 12 (2:1)" }
+    }
+    for colIdx, doz in ipairs(dozDefs) do
+        local x = tx + (colIdx - 1) * (dozW + 2)
+        love.graphics.setColor(0.09, 0.29, 0.16, alpha)
+        love.graphics.rectangle("fill", x, dozY, dozW, dozH, 3)
+
+        love.graphics.setColor(1, 1, 1, alpha)
+        love.graphics.print(doz.label, x + dozW / 2 - 38, dozY + 10)
+
+        if roulette.cursorRow == 5 and roulette.cursorCol == colIdx then
+            love.graphics.setColor(1, 0.88, 0.2, alpha)
+            love.graphics.setLineWidth(3)
+            love.graphics.rectangle("line", x - 2, dozY - 2, dozW + 4, dozH + 4, 4)
+            love.graphics.setLineWidth(1)
+        end
+
+        if roulette.bets[doz.key] then
+            love.graphics.setColor(1, 0.85, 0.2, alpha)
+            love.graphics.circle("fill", x + dozW - 12, dozY + 12, 8)
+        end
+    end
+
+    -- 4. Внешние ставки: 1-18, EVEN, RED, BLACK, ODD, 19-36 (1:1)
+    local outY = dozY + dozH + 4
+    local outW = (totalW - 10) / 6
+    local outH = 34
+    local outDefs = {
+        { key = "low",   label = "1-18",  bg = { 0.09, 0.29, 0.16 } },
+        { key = "even",  label = "EVEN",  bg = { 0.09, 0.29, 0.16 } },
+        { key = "red",   label = "RED",   bg = { 0.70, 0.15, 0.10 } },
+        { key = "black", label = "BLACK", bg = { 0.12, 0.05, 0.02 } },
+        { key = "odd",   label = "ODD",   bg = { 0.09, 0.29, 0.16 } },
+        { key = "high",  label = "19-36", bg = { 0.09, 0.29, 0.16 } }
+    }
+    for colIdx, ob in ipairs(outDefs) do
+        local x = tx + (colIdx - 1) * (outW + 2)
+        love.graphics.setColor(ob.bg[1], ob.bg[2], ob.bg[3], alpha)
+        love.graphics.rectangle("fill", x, outY, outW, outH, 3)
+
+        love.graphics.setColor(1, 1, 1, alpha)
+        love.graphics.print(ob.label, x + outW / 2 - (#ob.label * 4), outY + 10)
+
+        if roulette.cursorRow == 6 and roulette.cursorCol == colIdx then
+            love.graphics.setColor(1, 0.88, 0.2, alpha)
+            love.graphics.setLineWidth(3)
+            love.graphics.rectangle("line", x - 2, outY - 2, outW + 4, outH + 4, 4)
+            love.graphics.setLineWidth(1)
+        end
+
+        if roulette.bets[ob.key] then
+            love.graphics.setColor(1, 0.85, 0.2, alpha)
+            love.graphics.circle("fill", x + outW - 10, outY + 10, 7)
         end
     end
 
@@ -449,9 +555,11 @@ end
 function roulette.keypressed(key)
     if key == "up" then
         roulette.cursorRow = math.max(1, roulette.cursorRow - 1)
+        roulette.cursorCol = math.min(roulette.cursorCol, #grid[roulette.cursorRow])
         audio.play("click")
     elseif key == "down" then
         roulette.cursorRow = math.min(#grid, roulette.cursorRow + 1)
+        roulette.cursorCol = math.min(roulette.cursorCol, #grid[roulette.cursorRow])
         audio.play("click")
     elseif key == "left" then
         roulette.cursorCol = math.max(1, roulette.cursorCol - 1)

@@ -90,6 +90,33 @@ function bj.stand()
     if bj.gameOver then return end
     bj.gameOver = true
 
+    local pScore = bj.calculateScore(bj.playerHand)
+    local dScore = bj.calculateScore(bj.dealerHand)
+    local playerBJ = (pScore == 21 and #bj.playerHand == 2)
+    local dealerBJ = (dScore == 21 and #bj.dealerHand == 2)
+
+    -- Натуральный блэкджек (3:2)
+    if playerBJ then
+        if dealerBJ then
+            economy.add(bj.bet)
+            bj.statusText = string.format("%s (BOTH BLACKJACK)", i18n.t("push"))
+            audio.play("click")
+        else
+            local win = bj.bet * 2.5
+            economy.add(win)
+            bj.statusText = string.format("★ BLACKJACK! %s (+%s) ★", economy.format(win), economy.format(win - bj.bet))
+            audio.play("win")
+        end
+        return
+    end
+
+    if dealerBJ then
+        bj.statusText = "DEALER BLACKJACK!"
+        audio.play("fail")
+        return
+    end
+
+    -- Дилер добирает строго до 17 (Dealer stands on all 17s)
     while bj.calculateScore(bj.dealerHand) < 17 do
         table.insert(bj.dealerHand, table.remove(bj.deck))
     end
@@ -99,22 +126,21 @@ function bj.stand()
 
     if d > 21 or p > d then
         local win = bj.bet * 2
-        if p == 21 and #bj.playerHand == 2 then win = bj.bet * 2.5 end
         economy.add(win)
-        bj.statusText = string.format("%s +%s", i18n.t("player_wins"), economy.format(win))
+        bj.statusText = string.format("%s: %s (+%s)", i18n.t("player_wins"), economy.format(win), economy.format(win - bj.bet))
         audio.play("win")
     elseif p == d then
         economy.add(bj.bet)
-        bj.statusText = i18n.t("push")
+        bj.statusText = string.format("%s (%s)", i18n.t("push"), economy.format(bj.bet))
         audio.play("click")
     else
-        bj.statusText = i18n.t("dealer_wins")
+        bj.statusText = string.format("%s (-%s)", i18n.t("dealer_wins"), economy.format(bj.bet))
         audio.play("fail")
     end
 end
 
 function bj.double()
-    if bj.gameOver or not economy.canAfford(bj.bet) then return end
+    if bj.gameOver or #bj.playerHand ~= 2 or not economy.canAfford(bj.bet) then return end
     economy.spend(bj.bet)
     bj.bet = bj.bet * 2
     bj.hit()
