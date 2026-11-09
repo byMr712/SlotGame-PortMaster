@@ -281,103 +281,39 @@ function roulette.finishSpin()
     table.insert(roulette.history, 1, num)
     if #roulette.history > 6 then table.remove(roulette.history) end
 
-    local totalBet = roulette.getTotalBet()
-
     -- Выплаты по стандартным европейским правилам:
     local payout = 0
-    local winDetails = {}
     local key = tostring(num)
 
     -- 1. Точное число (Straight-Up 35:1 -> возврат 36x)
-    if roulette.bets[key] then
-        local amt = roulette.bets[key]
-        local win = amt * 36
-        payout = payout + win
-        table.insert(winDetails, string.format("#%d (%s x36 = %s)", num, economy.format(amt), economy.format(win)))
-    end
+    if roulette.bets[key] then payout = payout + roulette.bets[key] * 36 end
 
     if num ~= 0 then
         -- 2. Равные шансы (Even Money 1:1 -> возврат 2x)
-        if red and roulette.bets["red"] then
-            local amt = roulette.bets["red"]
-            local win = amt * 2
-            payout = payout + win
-            table.insert(winDetails, string.format("RED (%s x2 = %s)", economy.format(amt), economy.format(win)))
-        end
-        if not red and roulette.bets["black"] then
-            local amt = roulette.bets["black"]
-            local win = amt * 2
-            payout = payout + win
-            table.insert(winDetails, string.format("BLACK (%s x2 = %s)", economy.format(amt), economy.format(win)))
-        end
-        if num % 2 == 0 and roulette.bets["even"] then
-            local amt = roulette.bets["even"]
-            local win = amt * 2
-            payout = payout + win
-            table.insert(winDetails, string.format("EVEN (%s x2 = %s)", economy.format(amt), economy.format(win)))
-        end
-        if num % 2 ~= 0 and roulette.bets["odd"] then
-            local amt = roulette.bets["odd"]
-            local win = amt * 2
-            payout = payout + win
-            table.insert(winDetails, string.format("ODD (%s x2 = %s)", economy.format(amt), economy.format(win)))
-        end
-        if num <= 18 and roulette.bets["low"] then
-            local amt = roulette.bets["low"]
-            local win = amt * 2
-            payout = payout + win
-            table.insert(winDetails, string.format("1-18 (%s x2 = %s)", economy.format(amt), economy.format(win)))
-        end
-        if num >= 19 and roulette.bets["high"] then
-            local amt = roulette.bets["high"]
-            local win = amt * 2
-            payout = payout + win
-            table.insert(winDetails, string.format("19-36 (%s x2 = %s)", economy.format(amt), economy.format(win)))
-        end
+        if red and roulette.bets["red"] then payout = payout + roulette.bets["red"] * 2 end
+        if not red and roulette.bets["black"] then payout = payout + roulette.bets["black"] * 2 end
+        if num % 2 == 0 and roulette.bets["even"] then payout = payout + roulette.bets["even"] * 2 end
+        if num % 2 ~= 0 and roulette.bets["odd"] then payout = payout + roulette.bets["odd"] * 2 end
+        if num <= 18 and roulette.bets["low"] then payout = payout + roulette.bets["low"] * 2 end
+        if num >= 19 and roulette.bets["high"] then payout = payout + roulette.bets["high"] * 2 end
 
         -- 3. Дюжины (Dozens 2:1 -> возврат 3x)
-        if num >= 1 and num <= 12 and roulette.bets["doz-1"] then
-            local amt = roulette.bets["doz-1"]
-            local win = amt * 3
-            payout = payout + win
-            table.insert(winDetails, string.format("1ST 12 (%s x3 = %s)", economy.format(amt), economy.format(win)))
-        end
-        if num >= 13 and num <= 24 and roulette.bets["doz-2"] then
-            local amt = roulette.bets["doz-2"]
-            local win = amt * 3
-            payout = payout + win
-            table.insert(winDetails, string.format("2ND 12 (%s x3 = %s)", economy.format(amt), economy.format(win)))
-        end
-        if num >= 25 and num <= 36 and roulette.bets["doz-3"] then
-            local amt = roulette.bets["doz-3"]
-            local win = amt * 3
-            payout = payout + win
-            table.insert(winDetails, string.format("3RD 12 (%s x3 = %s)", economy.format(amt), economy.format(win)))
-        end
+        if num >= 1 and num <= 12 and roulette.bets["doz-1"] then payout = payout + roulette.bets["doz-1"] * 3 end
+        if num >= 13 and num <= 24 and roulette.bets["doz-2"] then payout = payout + roulette.bets["doz-2"] * 3 end
+        if num >= 25 and num <= 36 and roulette.bets["doz-3"] then payout = payout + roulette.bets["doz-3"] * 3 end
     end
-
-    local netProfit = payout - totalBet
 
     if payout > 0 then
         economy.add(payout)
-        local detailStr = table.concat(winDetails, " + ")
-        if netProfit > 0 then
-            roulette.statusText = string.format("★ %d %s! %s • BET: %s • NET: +%s ★", num, colName, detailStr, economy.format(totalBet), economy.format(netProfit))
-            audio.play("win")
-        elseif netProfit == 0 then
-            roulette.statusText = string.format("★ %d %s! %s • BET: %s • PUSH ★", num, colName, detailStr, economy.format(totalBet))
-            audio.play("click")
-        else
-            roulette.statusText = string.format("★ %d %s! %s • BET: %s • NET: -%s ★", num, colName, detailStr, economy.format(totalBet), economy.format(math.abs(netProfit)))
-            audio.play("click")
-        end
+        roulette.statusText = string.format("★ %d %s! +%s ★", num, colName, economy.format(payout))
+        audio.play("win")
     else
-        roulette.statusText = string.format("★ %d %s! LOST -%s ★", num, colName, economy.format(totalBet))
+        roulette.statusText = string.format("★ %d %s ★", num, colName)
         audio.play("fail")
     end
 
     roulette.bets = {}
-    roulette.holdTimer = 3.2
+    roulette.holdTimer = 2.6
 end
 
 local function drawGrid(alpha)

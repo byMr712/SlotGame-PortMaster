@@ -99,19 +99,19 @@ function bj.stand()
     if playerBJ then
         if dealerBJ then
             economy.add(bj.bet)
-            bj.statusText = string.format("%s (BOTH BLACKJACK)", i18n.t("push"))
+            bj.statusText = i18n.t("push")
             audio.play("click")
         else
             local win = bj.bet * 2.5
             economy.add(win)
-            bj.statusText = string.format("★ BLACKJACK! %s (+%s) ★", economy.format(win), economy.format(win - bj.bet))
+            bj.statusText = string.format("★ BLACKJACK! +%s ★", economy.format(win))
             audio.play("win")
         end
         return
     end
 
     if dealerBJ then
-        bj.statusText = "DEALER BLACKJACK!"
+        bj.statusText = "DEALER BLACKJACK"
         audio.play("fail")
         return
     end
@@ -127,14 +127,14 @@ function bj.stand()
     if d > 21 or p > d then
         local win = bj.bet * 2
         economy.add(win)
-        bj.statusText = string.format("%s: %s (+%s)", i18n.t("player_wins"), economy.format(win), economy.format(win - bj.bet))
+        bj.statusText = string.format("%s +%s", i18n.t("player_wins"), economy.format(win))
         audio.play("win")
     elseif p == d then
         economy.add(bj.bet)
-        bj.statusText = string.format("%s (%s)", i18n.t("push"), economy.format(bj.bet))
+        bj.statusText = i18n.t("push")
         audio.play("click")
     else
-        bj.statusText = string.format("%s (-%s)", i18n.t("dealer_wins"), economy.format(bj.bet))
+        bj.statusText = i18n.t("dealer_wins")
         audio.play("fail")
     end
 end

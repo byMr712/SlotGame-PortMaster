@@ -103,19 +103,13 @@ function poker.drawOrDeal()
         end
 
         local name, mult = poker.evaluateHand()
-        if mult > 1 then
+        if mult > 0 then
             local win = poker.bet * mult
-            local profit = win - poker.bet
             economy.add(win)
-            poker.comboText = string.format("★ %s! WON %s (+%s) ★", name, economy.format(win), economy.format(profit))
+            poker.comboText = string.format("★ %s! +%s ★", name, economy.format(win))
             audio.play("win")
-        elseif mult == 1 then
-            local win = poker.bet
-            economy.add(win)
-            poker.comboText = string.format("★ %s! PUSH %s ★", name, economy.format(win))
-            audio.play("click")
         else
-            poker.comboText = string.format("NO COMBINATION (-%s). [X] DEAL", economy.format(poker.bet))
+            poker.comboText = "NO COMBINATION. [X] DEAL"
             audio.play("fail")
         end
 
