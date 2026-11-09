@@ -1,0 +1,8 @@
+Title="Stardew Saloon Casino"
+Type="Port"
+Desc="Authentic offline Stardew-styled casino with Slots, Blackjack, European Roulette and Draw Poker for TrimUI Brick (1024x768)."
+Author="Antigravity"
+Version="1.0"
+Porter="PortMaster"
+Architecture="aarch64"
+Requirements="love"
