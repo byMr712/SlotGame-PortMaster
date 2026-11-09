@@ -6,10 +6,12 @@ local poker = require("src.games.poker")
 local economy = require("src.core.economy")
 local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
+local sprites = require("src.core.sprites")
 
 local activeTab = 1 -- 1: Slots (Стартуем всегда со слотов!), 2: BJ, 3: Roulette, 4: Poker
 
 function love.load()
+    sprites.init()
     audio.init()
     slots.init()
     bj.createDeck()

@@ -3,6 +3,7 @@ local poker = {}
 local economy = require("src.core.economy")
 local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
+local sprites = require("src.core.sprites")
 
 poker.bet = 500
 poker.deck = {}
@@ -134,7 +135,7 @@ local function drawCard(c, x, y, held, focused)
 
     love.graphics.print(c.name, x + 8, y + 8)
     love.graphics.print(c.name, x + 76, y + 114)
-    love.graphics.circle("fill", x + 50, y + 70, 12)
+    sprites.draw(c.suit, x + 50, y + 70, 28)
 
     if held then
         love.graphics.setColor(0.7, 0.15, 0.1)

@@ -1,47 +1,43 @@
 local economy = {
-    balance_rub = 100000,
-    currency = "RUB", -- "RUB" или "USD"
-    rate = 100 -- 100 руб = $1
+    balance = 100000,
+    currency = "USD"
 }
 
 function economy.getBalance()
-    return economy.balance_rub
+    return economy.balance
 end
 
-function economy.format(amountRub)
-    if economy.currency == "RUB" then
-        return string.format("%d ₽", amountRub or 0)
-    else
-        return string.format("$%d", math.floor((amountRub or 0) / economy.rate))
-    end
+function economy.format(amount)
+    return string.format("$%d", amount or 0)
 end
 
 function economy.getBalanceFormatted()
-    return economy.format(economy.balance_rub)
+    return economy.format(economy.balance)
 end
 
 function economy.toggleCurrency()
-    economy.currency = (economy.currency == "RUB") and "USD" or "RUB"
+    -- Strict USD standard
+    economy.currency = "USD"
 end
 
 function economy.add(amount)
-    economy.balance_rub = math.max(0, economy.balance_rub + amount)
+    economy.balance = math.max(0, economy.balance + (amount or 0))
 end
 
 function economy.canAfford(amount)
-    return economy.balance_rub >= amount
+    return economy.balance >= (amount or 0)
 end
 
 function economy.spend(amount)
     if economy.canAfford(amount) then
-        economy.balance_rub = economy.balance_rub - amount
+        economy.balance = economy.balance - amount
         return true
     end
     return false
 end
 
 function economy.bailout()
-    economy.balance_rub = economy.balance_rub + 100000
+    economy.balance = economy.balance + 100000
 end
 
 return economy

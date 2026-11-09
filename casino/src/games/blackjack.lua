@@ -3,6 +3,7 @@ local bj = {}
 local economy = require("src.core.economy")
 local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
+local sprites = require("src.core.sprites")
 
 bj.bet = 1000
 bj.deck = {}
@@ -128,8 +129,7 @@ local function drawCard(c, x, y, hidden)
     if hidden then
         love.graphics.setColor(0.35, 0.15, 0.05)
         love.graphics.rectangle("fill", x + 3, y + 3, 86, 124, 4)
-        love.graphics.setColor(0.8, 0.4, 0.9)
-        love.graphics.circle("fill", x + 46, y + 65, 18)
+        sprites.draw("stardrop", x + 46, y + 65, 36)
         return
     end
 
@@ -138,14 +138,14 @@ local function drawCard(c, x, y, hidden)
 
     local isRed = (c.suit == "heart" or c.suit == "diamond")
     if isRed then
-        love.graphics.setColor(0.7, 0.15, 0.1)
+        love.graphics.setColor(0.75, 0.15, 0.1)
     else
-        love.graphics.setColor(0.1, 0.1, 0.1)
+        love.graphics.setColor(0.1, 0.05, 0.02)
     end
 
     love.graphics.print(c.name, x + 8, y + 8)
     love.graphics.print(c.name, x + 70, y + 104)
-    love.graphics.circle("fill", x + 46, y + 65, 10)
+    sprites.draw(c.suit, x + 46, y + 65, 28)
 end
 
 function bj.draw()
