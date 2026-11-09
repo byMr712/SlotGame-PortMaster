@@ -18,6 +18,9 @@ roulette.ballAngle = 0
 roulette.ballRadius = 110
 roulette.history = { 32, 15 }
 roulette.statusText = "D-PAD SELECT • [A] BET • [X] SPIN"
+roulette.zoom = 0
+roulette.targetZoom = 0
+roulette.holdTimer = 0
 
 local grid = {
     { "0" },
@@ -93,7 +96,9 @@ function roulette.spin()
     end
 
     roulette.isSpinning = true
-    roulette.statusText = "BALL IN PLAY..."
+    roulette.targetZoom = 1
+    roulette.holdTimer = 0
+    roulette.statusText = "★ BALL IN PLAY... ★"
     audio.play("click")
 
     local winIdx = math.random(1, #roulette.wheel)
@@ -101,34 +106,55 @@ function roulette.spin()
     roulette.targetSlice = winIdx - 1
 
     roulette.spinElapsed = 0
-    roulette.spinDuration = 4.5
+    roulette.spinDuration = 5.0
 end
 
 function roulette.update(dt)
-    if not roulette.isSpinning then return end
+    -- Плавная интерполяция зума и центровки колеса
+    roulette.zoom = roulette.zoom + (roulette.targetZoom - roulette.zoom) * math.min(1, dt * 4.5)
+
+    if roulette.holdTimer > 0 then
+        roulette.holdTimer = roulette.holdTimer - dt
+        if roulette.holdTimer <= 0 then
+            roulette.targetZoom = 0
+            roulette.isSpinning = false
+            roulette.statusText = "D-PAD SELECT • [A] BET • [X] SPIN"
+        end
+    end
+
+    if not roulette.isSpinning or roulette.holdTimer > 0 then return end
 
     roulette.spinElapsed = roulette.spinElapsed + dt
     local progress = math.min(1, roulette.spinElapsed / roulette.spinDuration)
     local slice = (math.pi * 2) / 37
 
-    roulette.wheelAngle = roulette.wheelAngle + (0.08 * (1 - progress * 0.7))
+    roulette.wheelAngle = roulette.wheelAngle + (0.065 * (1 - progress * 0.65))
     local targetPocketAngle = roulette.wheelAngle + roulette.targetSlice * slice + slice / 2
 
-    if progress < 0.65 then
-        roulette.ballAngle = roulette.ballAngle - 0.25 * (1 - progress * 0.4)
-        roulette.ballRadius = 110
-    elseif progress < 0.90 then
-        local sub = (progress - 0.65) / 0.25
-        roulette.ballRadius = 110 - sub * 36
-        roulette.ballAngle = roulette.ballAngle - 0.08 * (1 - sub)
-        if math.random() < 0.3 then audio.play("fret") end
+    if progress < 0.52 then
+        roulette.ballAngle = roulette.ballAngle - 0.22 * (1 - progress * 0.35)
+        roulette.ballRadius = 0.88
+    elseif progress < 0.74 then
+        local sub = (progress - 0.52) / 0.22
+        roulette.ballRadius = 0.88 - sub * 0.18
+        roulette.ballAngle = roulette.ballAngle - 0.18 * (1 - sub * 0.5)
+    elseif progress < 0.84 then
+        local sub = (progress - 0.74) / 0.10
+        roulette.ballRadius = 0.70 - sub * 0.08
+        roulette.ballAngle = roulette.ballAngle - 0.06 * (1 - sub)
+        if math.random() < 0.25 then audio.play("fret") end
     else
-        roulette.ballRadius = 74
-        roulette.ballAngle = targetPocketAngle
+        local land = (progress - 0.84) / 0.16
+        local hop = math.sin(land * math.pi * 3) * (1 - land) * 0.06
+        roulette.ballRadius = 0.62 + hop
+        local jitter = math.cos(land * math.pi * 3) * (1 - land) * 0.28
+        roulette.ballAngle = targetPocketAngle + jitter
+        if math.random() < 0.3 then audio.play("click") end
     end
 
     if progress >= 1 then
-        roulette.isSpinning = false
+        roulette.ballAngle = targetPocketAngle
+        roulette.ballRadius = 0.62
         roulette.finishSpin()
     end
 end
@@ -162,54 +188,21 @@ function roulette.finishSpin()
         roulette.statusText = string.format("★ %d (%s)! +%s ★", num, colName, economy.format(payout))
         audio.play("win")
     else
-        roulette.statusText = string.format("%d (%s). [X] SPIN", num, colName)
+        roulette.statusText = string.format("★ %d (%s) ★", num, colName)
         audio.play("fail")
     end
 
     roulette.bets = {}
+    roulette.holdTimer = 2.6
 end
 
-function roulette.draw()
-    love.graphics.setColor(0.22, 0.1, 0.04)
-    love.graphics.rectangle("fill", 40, 80, 944, 40, 4)
-    love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(roulette.statusText, 60, 92)
-
-    local cx, cy, r = 180, 320, 130
-    love.graphics.setColor(0.18, 0.08, 0.03)
-    love.graphics.circle("fill", cx, cy, r + 8)
-    love.graphics.setColor(0.78, 0.52, 0.12)
-    love.graphics.circle("line", cx, cy, r + 8)
-
-    local slice = (math.pi * 2) / 37
-    for i, num in ipairs(roulette.wheel) do
-        local start = roulette.wheelAngle + (i - 1) * slice
-        if num == 0 then
-            love.graphics.setColor(0.1, 0.45, 0.15)
-        elseif isRed(num) then
-            love.graphics.setColor(0.7, 0.15, 0.1)
-        else
-            love.graphics.setColor(0.1, 0.05, 0.02)
-        end
-        love.graphics.arc("fill", cx, cy, r, start, start + slice)
-    end
-
-    love.graphics.setColor(0.9, 0.7, 0.2)
-    love.graphics.circle("fill", cx, cy, 28)
-    love.graphics.setColor(0.1, 0.05, 0.02)
-    love.graphics.circle("fill", cx, cy, 10)
-
-    local bx = cx + math.cos(roulette.ballAngle) * roulette.ballRadius
-    local by = cy + math.sin(roulette.ballAngle) * roulette.ballRadius
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.circle("fill", bx, by, 6)
-
+local function drawGrid(alpha)
+    love.graphics.setColor(0.1, 0.45, 0.15, alpha)
     local tx, ty = 340, 140
     local cellW, cellH = 48, 60
 
-    love.graphics.setColor(0.1, 0.45, 0.15)
     love.graphics.rectangle("fill", tx, ty, cellW * 12 + 22, 38, 4)
-    love.graphics.setColor(1, 1, 1)
+    love.graphics.setColor(1, 1, 1, alpha)
     love.graphics.print("0 ZERO (35:1)", tx + 240, ty + 12)
 
     local rows = {
@@ -223,35 +216,121 @@ function roulette.draw()
             local y = ty + 44 + (rowIdx - 1) * (cellH + 2)
 
             if isRed(num) then
-                love.graphics.setColor(0.7, 0.15, 0.1)
+                love.graphics.setColor(0.7, 0.15, 0.1, alpha)
             else
-                love.graphics.setColor(0.12, 0.05, 0.02)
+                love.graphics.setColor(0.12, 0.05, 0.02, alpha)
             end
             love.graphics.rectangle("fill", x, y, cellW, cellH, 3)
 
-            love.graphics.setColor(1, 1, 1)
+            love.graphics.setColor(1, 1, 1, alpha)
             love.graphics.print(tostring(num), x + 16, y + 22)
 
             if roulette.cursorRow == rowIdx + 1 and roulette.cursorCol == colIdx then
-                love.graphics.setColor(1, 0.88, 0.2)
+                love.graphics.setColor(1, 0.88, 0.2, alpha)
                 love.graphics.setLineWidth(3)
                 love.graphics.rectangle("line", x - 2, y - 2, cellW + 4, cellH + 4, 4)
                 love.graphics.setLineWidth(1)
             end
 
             if roulette.bets[tostring(num)] then
-                love.graphics.setColor(1, 0.85, 0.2)
+                love.graphics.setColor(1, 0.85, 0.2, alpha)
                 love.graphics.circle("fill", x + cellW - 12, y + 12, 8)
             end
         end
     end
 
-    love.graphics.setColor(0.22, 0.1, 0.04)
+    love.graphics.setColor(0.22, 0.1, 0.04, alpha)
     love.graphics.rectangle("fill", 40, 560, 944, 60, 4)
-    love.graphics.setColor(1, 0.88, 0.4)
+    love.graphics.setColor(1, 0.88, 0.4, alpha)
     love.graphics.print(string.format("%s: %s", i18n.t("chip"), economy.format(roulette.selectedChip)), 60, 580)
     love.graphics.print(string.format("%s: %s", i18n.t("bet"), economy.format(roulette.getTotalBet())), 280, 580)
     love.graphics.print("[A] BET  •  [B] UNDO  •  [Y] CHIP  •  [X] SPIN", 520, 580)
+end
+
+function roulette.draw()
+    love.graphics.setColor(0.22, 0.1, 0.04)
+    love.graphics.rectangle("fill", 40, 80, 944, 40, 4)
+    love.graphics.setColor(1, 0.88, 0.4)
+    love.graphics.print(roulette.statusText, 60, 92)
+
+    -- Расчет плавного зума и центровки
+    local cx = 180 + roulette.zoom * (512 - 180)
+    local cy = 340 + roulette.zoom * (390 - 340)
+    local r = 130 + roulette.zoom * (220 - 130)
+
+    -- Внешняя чаша из красного дерева с латунным ободом
+    love.graphics.setColor(0.18, 0.08, 0.03)
+    love.graphics.circle("fill", cx, cy, r + 10)
+    love.graphics.setColor(0.78, 0.52, 0.12)
+    love.graphics.setLineWidth(4)
+    love.graphics.circle("line", cx, cy, r + 10)
+    love.graphics.setLineWidth(1)
+
+    -- Канавка трека шарика
+    love.graphics.setColor(0.08, 0.03, 0.01)
+    love.graphics.circle("fill", cx, cy, r - 4)
+
+    -- 8 латунных дефлекторов
+    for d = 0, 7 do
+        local dang = d * (math.pi / 4)
+        local dx = cx + math.cos(dang) * (r - 12)
+        local dy = cy + math.sin(dang) * (r - 12)
+        love.graphics.setColor(1, 0.88, 0.5)
+        love.graphics.rectangle("fill", dx - 2, dy - 2, 4, 4)
+    end
+
+    -- 37 карманов
+    local slice = (math.pi * 2) / 37
+    local innerR = r * 0.65
+    for i, num in ipairs(roulette.wheel) do
+        local start = roulette.wheelAngle + (i - 1) * slice
+        if num == 0 then
+            love.graphics.setColor(0.08, 0.45, 0.16)
+        elseif isRed(num) then
+            love.graphics.setColor(0.72, 0.12, 0.12)
+        else
+            love.graphics.setColor(0.08, 0.04, 0.02)
+        end
+        love.graphics.arc("fill", cx, cy, r - 20, start, start + slice)
+
+        -- Латунные разделители (frets)
+        love.graphics.setColor(1, 0.9, 0.5, 0.7)
+        local fx1 = cx + math.cos(start) * innerR
+        local fy1 = cy + math.sin(start) * innerR
+        local fx2 = cx + math.cos(start) * (r - 20)
+        local fy2 = cy + math.sin(start) * (r - 20)
+        love.graphics.line(fx1, fy1, fx2, fy2)
+    end
+
+    -- Внутренний полированный конус и центральная турель
+    love.graphics.setColor(0.24, 0.10, 0.04)
+    love.graphics.circle("fill", cx, cy, innerR)
+    love.graphics.setColor(0.85, 0.65, 0.18)
+    love.graphics.circle("fill", cx, cy, r * 0.22)
+    love.graphics.setColor(0.12, 0.05, 0.02)
+    love.graphics.circle("fill", cx, cy, r * 0.08)
+
+    -- Физический шарик
+    if roulette.isSpinning or roulette.holdTimer > 0 then
+        local actualBallR = r * roulette.ballRadius
+        local bx = cx + math.cos(roulette.ballAngle) * actualBallR
+        local by = cy + math.sin(roulette.ballAngle) * actualBallR
+
+        -- Тень шарика
+        love.graphics.setColor(0, 0, 0, 0.45)
+        love.graphics.circle("fill", bx + 3, by + 3, 7)
+        -- Шарик
+        love.graphics.setColor(0.98, 0.96, 0.92)
+        love.graphics.circle("fill", bx, by, 7)
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.circle("fill", bx - 2, by - 2, 2.5)
+    end
+
+    -- СЕТКА И КНОПКИ СТАВОК СКРЫВАЮТСЯ ВО ВРЕМЯ ВРАЩЕНИЯ И ПОКА ПО ЦЕНТРУ
+    if roulette.zoom < 0.65 then
+        local alpha = 1 - (roulette.zoom / 0.65)
+        drawGrid(alpha)
+    end
 end
 
 function roulette.keypressed(key)
