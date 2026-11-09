@@ -88,6 +88,11 @@ function roulette.removeBet()
     end
 end
 
+local T_WHEEL_ONLY = 2.0 -- Колесо запускается первым и крутится 2 секунды
+local T_BALL_RUN = 5.2   -- Шарик кидают, когда колесо уже замедляется
+local T_HOLD = 2.2       -- Шарик лежит в лунке на остаточном вращении колеса
+local SLICE = (math.pi * 2) / 37
+
 function roulette.spin()
     if roulette.isSpinning then return end
     if roulette.getTotalBet() == 0 then
@@ -98,15 +103,58 @@ function roulette.spin()
     roulette.isSpinning = true
     roulette.targetZoom = 1
     roulette.holdTimer = 0
-    roulette.statusText = "★ BALL IN PLAY... ★"
+    roulette.statusText = "★ WHEEL IN MOTION... ★"
     audio.play("click")
 
     local winIdx = math.random(1, #roulette.wheel)
     roulette.winNum = roulette.wheel[winIdx]
     roulette.targetSlice = winIdx - 1
 
+    roulette.wheelSpeed = 0.075
     roulette.spinElapsed = 0
-    roulette.spinDuration = 5.0
+    roulette.ballActive = false
+    roulette.ballTau = 0
+    roulette.hitDeflector = false
+    roulette.settled = false
+    roulette.bounceClick = false
+
+    -- Точный расчет физического импульса шарика вперед (forward integration):
+    -- Вычисляем положение целевого кармана в момент посадки шарика
+    local simWSpeed = roulette.wheelSpeed
+    local simWAngle = roulette.wheelAngle
+    local dt = 1 / 60
+    local totalSpinTime = T_WHEEL_ONLY + T_BALL_RUN
+    for t = 0, totalSpinTime, dt do
+        simWSpeed = math.max(0.010, simWSpeed * math.pow(0.995, dt * 60))
+        simWAngle = simWAngle + simWSpeed
+    end
+
+    local targetPocketAtLand = simWAngle + roulette.targetSlice * SLICE + SLICE / 2
+    local ballLaunchAngle = -math.pi / 2 -- Запуск с верхней точки чаши
+    local N_REV = 6
+    local angleDiff = (targetPocketAtLand - ballLaunchAngle) % (math.pi * 2)
+    if angleDiff > 0 then angleDiff = angleDiff - math.pi * 2 end
+    local totalBallTravel = angleDiff - (N_REV * math.pi * 2)
+
+    -- Интеграл кривой замедления шарика
+    local function getFactor(tau)
+        local p = tau / T_BALL_RUN
+        if p < 0.6 then
+            return 1 - p * 0.45
+        else
+            local sub = (p - 0.6) / 0.4
+            return 0.73 * math.pow(1 - sub, 2.0)
+        end
+    end
+
+    local factorIntegral = 0
+    for s = 0, T_BALL_RUN, dt do
+        factorIntegral = factorIntegral + getFactor(s) * dt
+    end
+
+    roulette.ballOmega0 = totalBallTravel / factorIntegral
+    roulette.ballAngle = ballLaunchAngle
+    roulette.ballRadius = 0.90
 end
 
 function roulette.update(dt)
@@ -118,6 +166,7 @@ function roulette.update(dt)
         if roulette.holdTimer <= 0 then
             roulette.targetZoom = 0
             roulette.isSpinning = false
+            roulette.ballActive = false
             roulette.statusText = "D-PAD SELECT • [A] BET • [X] SPIN"
         end
     end
@@ -125,37 +174,79 @@ function roulette.update(dt)
     if not roulette.isSpinning or roulette.holdTimer > 0 then return end
 
     roulette.spinElapsed = roulette.spinElapsed + dt
-    local progress = math.min(1, roulette.spinElapsed / roulette.spinDuration)
-    local slice = (math.pi * 2) / 37
 
-    roulette.wheelAngle = roulette.wheelAngle + (0.065 * (1 - progress * 0.65))
-    local targetPocketAngle = roulette.wheelAngle + roulette.targetSlice * slice + slice / 2
+    -- 1. Колесо крутится и плавно замедляется (физика трения)
+    roulette.wheelSpeed = math.max(0.010, roulette.wheelSpeed * math.pow(0.995, dt * 60))
+    roulette.wheelAngle = roulette.wheelAngle + roulette.wheelSpeed
 
-    if progress < 0.52 then
-        roulette.ballAngle = roulette.ballAngle - 0.22 * (1 - progress * 0.35)
-        roulette.ballRadius = 0.88
-    elseif progress < 0.74 then
-        local sub = (progress - 0.52) / 0.22
-        roulette.ballRadius = 0.88 - sub * 0.18
-        roulette.ballAngle = roulette.ballAngle - 0.18 * (1 - sub * 0.5)
-    elseif progress < 0.84 then
-        local sub = (progress - 0.74) / 0.10
-        roulette.ballRadius = 0.70 - sub * 0.08
-        roulette.ballAngle = roulette.ballAngle - 0.06 * (1 - sub)
-        if math.random() < 0.25 then audio.play("fret") end
-    else
-        local land = (progress - 0.84) / 0.16
-        local hop = math.sin(land * math.pi * 3) * (1 - land) * 0.06
-        roulette.ballRadius = 0.62 + hop
-        local jitter = math.cos(land * math.pi * 3) * (1 - land) * 0.28
-        roulette.ballAngle = targetPocketAngle + jitter
-        if math.random() < 0.3 then audio.play("click") end
+    -- 2. Запуск шарика, когда колесо уже замедлилось (после 2 секунд)
+    if roulette.spinElapsed >= T_WHEEL_ONLY and not roulette.ballActive then
+        roulette.ballActive = true
+        audio.play("coin")
+        roulette.statusText = "★ BALL LAUNCHED! ★"
     end
 
-    if progress >= 1 then
-        roulette.ballAngle = targetPocketAngle
-        roulette.ballRadius = 0.62
-        roulette.finishSpin()
+    if roulette.ballActive then
+        if roulette.ballTau < T_BALL_RUN then
+            local p = roulette.ballTau / T_BALL_RUN
+            local factor
+            if p < 0.6 then
+                factor = 1 - p * 0.45
+            else
+                local sub = (p - 0.6) / 0.4
+                factor = 0.73 * math.pow(1 - sub, 2.0)
+            end
+
+            -- ЧИСТАЯ ФИЗИЧЕСКАЯ ИНТЕГРАЦИЯ ВПЕРЕД: theta += omega * dt (НИКАКОЙ ТЕЛЕПОРТАЦИИ!)
+            roulette.ballAngle = roulette.ballAngle + roulette.ballOmega0 * factor * dt
+
+            -- Физический радиус шарика
+            if p < 0.5 then
+                -- Наружный трек
+                roulette.ballRadius = 0.90
+            elseif p < 0.72 then
+                -- Сход с трека по спирали к дефлекторам
+                local sub = (p - 0.5) / 0.22
+                local ease = sub * sub * (3 - 2 * sub)
+                roulette.ballRadius = 0.90 - ease * (0.90 - 0.72)
+                if sub > 0.75 and not roulette.hitDeflector then
+                    roulette.hitDeflector = true
+                    audio.play("fret")
+                end
+            else
+                -- ЗАМЕДЛЕННАЯ СЪЁМКА (SLOW-MOTION) И ОТСКОКИ ПО КАРМАНАМ
+                local sub = (p - 0.72) / 0.28
+                local decay = math.pow(1 - sub, 2)
+                local hop = math.abs(math.sin(sub * math.pi * 5)) * decay * 0.055
+                roulette.ballRadius = 0.72 - sub * (0.72 - 0.62) + hop
+
+                local bouncePhase = (sub * 5) % 1
+                if bouncePhase < 0.2 and not roulette.bounceClick then
+                    roulette.bounceClick = true
+                    audio.play("tick")
+                elseif bouncePhase > 0.35 then
+                    roulette.bounceClick = false
+                end
+            end
+            roulette.ballTau = roulette.ballTau + dt
+        else
+            -- 3. Шарик надежно лежит в лунке и крутится ВМЕСТЕ с колесом на остаточном вращении
+            roulette.ballRadius = 0.62
+            roulette.ballAngle = roulette.ballAngle + roulette.wheelSpeed
+
+            if not roulette.settled then
+                roulette.settled = true
+                audio.play("click")
+                local red = isRed(roulette.winNum)
+                local col = roulette.winNum == 0 and "ZERO" or (red and "RED" or "BLACK")
+                roulette.statusText = string.format("★ %d %s ★", roulette.winNum, col)
+            end
+
+            -- Окончание вращения после наблюдения игроком
+            if roulette.spinElapsed >= (T_WHEEL_ONLY + T_BALL_RUN + T_HOLD) then
+                roulette.finishSpin()
+            end
+        end
     end
 end
 
@@ -310,8 +401,8 @@ function roulette.draw()
     love.graphics.setColor(0.12, 0.05, 0.02)
     love.graphics.circle("fill", cx, cy, r * 0.08)
 
-    -- Физический шарик
-    if roulette.isSpinning or roulette.holdTimer > 0 then
+    -- Физический шарик из слоновой кости (появляется только после броска крупье)
+    if (roulette.isSpinning or roulette.holdTimer > 0) and roulette.ballActive then
         local actualBallR = r * roulette.ballRadius
         local bx = cx + math.cos(roulette.ballAngle) * actualBallR
         local by = cy + math.sin(roulette.ballAngle) * actualBallR
