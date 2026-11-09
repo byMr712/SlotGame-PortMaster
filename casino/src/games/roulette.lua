@@ -175,9 +175,9 @@ function roulette.update(dt)
 
     roulette.spinElapsed = roulette.spinElapsed + dt
 
-    -- 1. Колесо крутится и плавно замедляется (физика трения)
+    -- 1. Колесо крутится и плавно замедляется (физика трения, строго нормализовано по dt)
     roulette.wheelSpeed = math.max(0.010, roulette.wheelSpeed * math.pow(0.995, dt * 60))
-    roulette.wheelAngle = roulette.wheelAngle + roulette.wheelSpeed
+    roulette.wheelAngle = roulette.wheelAngle + roulette.wheelSpeed * (dt * 60)
 
     -- 2. Запуск шарика, когда колесо уже замедлилось (после 2 секунд)
     if roulette.spinElapsed >= T_WHEEL_ONLY and not roulette.ballActive then
@@ -232,15 +232,26 @@ function roulette.update(dt)
         else
             -- 3. Шарик надежно лежит в лунке и крутится ВМЕСТЕ с колесом на остаточном вращении
             roulette.ballRadius = 0.62
-            roulette.ballAngle = roulette.ballAngle + roulette.wheelSpeed
 
             if not roulette.settled then
                 roulette.settled = true
+                -- Точно определяем карман, в котором физически находится шарик:
+                local rel = (roulette.ballAngle - roulette.wheelAngle) % (math.pi * 2)
+                local normRel = (rel + math.pi * 2) % (math.pi * 2)
+                local landedIdx = math.floor(normRel / SLICE) + 1
+                if landedIdx < 1 then landedIdx = 1 end
+                if landedIdx > 37 then landedIdx = 37 end
+                roulette.landedIdx = landedIdx
+                roulette.winNum = roulette.wheel[landedIdx]
+
                 audio.play("click")
                 local red = isRed(roulette.winNum)
                 local col = roulette.winNum == 0 and "ZERO" or (red and "RED" or "BLACK")
                 roulette.statusText = string.format("★ %d %s ★", roulette.winNum, col)
             end
+
+            -- Шарик идеально центрируется в своем кармане и вращается вместе с колесом
+            roulette.ballAngle = roulette.wheelAngle + (roulette.landedIdx - 1) * SLICE + SLICE / 2
 
             -- Окончание вращения после наблюдения игроком
             if roulette.spinElapsed >= (T_WHEEL_ONLY + T_BALL_RUN + T_HOLD) then
@@ -391,6 +402,17 @@ function roulette.draw()
         local fx2 = cx + math.cos(start) * (r - 20)
         local fy2 = cy + math.sin(start) * (r - 20)
         love.graphics.line(fx1, fy1, fx2, fy2)
+
+        -- Номер кармана (белый / кремовый шрифт)
+        if roulette.zoom > 0.35 then
+            local midAng = start + slice / 2
+            local textR = (r - 20 + innerR) / 2
+            local tx = cx + math.cos(midAng) * textR
+            local ty = cy + math.sin(midAng) * textR
+            love.graphics.setColor(1, 0.95, 0.7)
+            local sNum = tostring(num)
+            love.graphics.print(sNum, tx - 5, ty - 6)
+        end
     end
 
     -- Внутренний полированный конус и центральная турель
