@@ -22,6 +22,12 @@ slots.symbols = {
     "parsnip", "cherry", "parsnip", "ancient", "parsnip", "parsnip"
 }
 
+local symbolStops = {}
+for i, sym in ipairs(slots.symbols) do
+    if not symbolStops[sym] then symbolStops[sym] = {} end
+    table.insert(symbolStops[sym], i)
+end
+
 local CELL_H = 120
 local NUM_SYMBOLS = #slots.symbols
 local STRIP_HEIGHT = NUM_SYMBOLS * CELL_H
@@ -59,8 +65,28 @@ function slots.spin()
     slots.winPulse = 0
     slots.winLineTimer = 0
 
+    -- Удвоение шансов на крутые выигрыши (x500, x100, x30, x15), кроме x3
+    -- Исходные вероятности 3-в-ряд: stardrop=1/13824, prism=8/13824, ancient=64/13824, cherry=64/13824
+    local boostedSym = nil
+    local boostRoll = math.random() * 13824
+    if boostRoll < 1 then
+        boostedSym = "stardrop" -- x500
+    elseif boostRoll < (1 + 8) then
+        boostedSym = "prism"    -- x100
+    elseif boostRoll < (1 + 8 + 64) then
+        boostedSym = "ancient"  -- x30
+    elseif boostRoll < (1 + 8 + 64 + 64) then
+        boostedSym = "cherry"   -- x15
+    end
+
     for r = 1, 3 do
-        local stop = math.random(1, NUM_SYMBOLS)
+        local stop
+        if boostedSym and symbolStops[boostedSym] then
+            local stops = symbolStops[boostedSym]
+            stop = stops[math.random(#stops)]
+        else
+            stop = math.random(1, NUM_SYMBOLS)
+        end
         slots.reels[r].targetStop = stop
         slots.chosen[r] = slots.symbols[stop]
         slots.reels[r].stopped = false
