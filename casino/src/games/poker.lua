@@ -149,6 +149,10 @@ function poker.toggleHold(idx)
 end
 
 function poker.doDraw()
+    if #poker.hand == 0 then
+        poker.deal()
+        return
+    end
     if poker.phase ~= "draw" or poker.autoRestartTimer > 0 then return end
 
     if not poker.betDeducted then
@@ -195,6 +199,11 @@ function poker.doDraw()
 end
 
 function poker.update(dt)
+    -- Автоматическая сдача карт, если игра еще не запускалась или стол пуст
+    if #poker.hand == 0 and economy.getBalance() > 0 and not bankruptModal.active then
+        poker.deal()
+    end
+
     for _, c in ipairs(poker.hand) do
         if c.anim and c.anim < 1 then
             c.anim = math.min(1, c.anim + dt * 2.2)

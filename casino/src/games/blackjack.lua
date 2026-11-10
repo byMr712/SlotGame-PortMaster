@@ -119,6 +119,11 @@ function bj.calculateScore(hand)
 end
 
 function bj.update(dt)
+    -- Автоматическая сдача карт, если игра еще не запускалась или стол пуст
+    if #bj.playerHand == 0 and economy.getBalance() > 0 and not bankruptModal.active then
+        bj.deal()
+    end
+
     for _, c in ipairs(bj.playerHand) do
         if c.anim and c.anim < 1 then
             c.anim = math.min(1, c.anim + dt * 2.2)
@@ -185,6 +190,9 @@ function bj.deal()
 end
 
 function bj.hit()
+    if #bj.playerHand == 0 then
+        bj.deal()
+    end
     if bj.gameOver then return end
 
     -- Ставка забирается только когда игрок решил взять карту (подкинуть)
@@ -222,6 +230,9 @@ function bj.hit()
 end
 
 function bj.stand()
+    if #bj.playerHand == 0 then
+        bj.deal()
+    end
     if bj.gameOver then return end
 
     if not bj.betDeducted then
@@ -279,6 +290,9 @@ function bj.stand()
 end
 
 function bj.double()
+    if #bj.playerHand == 0 then
+        bj.deal()
+    end
     if bj.gameOver or #bj.playerHand ~= 2 then return end
     local needed = bj.betDeducted and bj.bet or (bj.bet * 2)
     if not economy.canAfford(needed) then
