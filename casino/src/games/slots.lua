@@ -198,11 +198,11 @@ function slots.evaluateWin()
         audio.play("fail")
     end
 
-    -- Проверка банкротства или снижение ставки до 100
+    -- Проверка банкротства или снижение ставки до остатка баланса
     if bankruptModal.check() then
         -- открыто окно банкротства
     elseif slots.bet > economy.getBalance() then
-        slots.bet = 100
+        slots.bet = math.max(1, economy.getBalance())
     end
 end
 

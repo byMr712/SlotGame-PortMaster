@@ -146,7 +146,7 @@ function poker.drawOrDeal()
         if bankruptModal.check() then
             -- открыто окно банкротства
         elseif poker.bet > economy.getBalance() then
-            poker.bet = 100
+            poker.bet = math.max(1, economy.getBalance())
         end
     end
 end

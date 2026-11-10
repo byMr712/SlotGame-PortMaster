@@ -351,7 +351,7 @@ function roulette.finishSpin()
     if bankruptModal.check() then
         -- открыто окно банкротства
     elseif roulette.chipBet and roulette.chipBet > economy.getBalance() then
-        roulette.chipBet = 100
+        roulette.chipBet = math.max(1, economy.getBalance())
     end
 end
 
