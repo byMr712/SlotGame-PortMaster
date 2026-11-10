@@ -32,10 +32,11 @@ function love.load()
     langModal.init()
 
     bankruptModal.setResetCallback(function()
-        slots.bet = 100
-        bj.bet = 100
-        roulette.chipBet = 100
-        poker.bet = 100
+        slots.bet = 500
+        bj.bet = 500
+        roulette.selectedChip = 500
+        roulette.chipBet = 500
+        poker.bet = 500
         slots.resetAttractMode()
         bj.resetTable()
         poker.resetTable()
