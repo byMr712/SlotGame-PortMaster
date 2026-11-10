@@ -275,10 +275,10 @@ function love.gamepadpressed(joystick, button)
         elseif button == "rightshoulder" then
             betModal.keypressed("r1")
             return
-        elseif button == "lefttrigger" then
+        elseif button == "lefttrigger" or button == "paddle2" or button == "misc1" then
             betModal.keypressed("l2")
             return
-        elseif button == "righttrigger" then
+        elseif button == "righttrigger" or button == "paddle1" then
             betModal.keypressed("r2")
             return
         end
@@ -292,9 +292,9 @@ function love.gamepadpressed(joystick, button)
         handleGlobalInput("currency")
     elseif button == "start" then
         handleGlobalInput("language")
-    elseif button == "righttrigger" then
+    elseif button == "righttrigger" or button == "paddle1" then
         love.keypressed("r2")
-    elseif button == "lefttrigger" then
+    elseif button == "lefttrigger" or button == "paddle2" then
         love.keypressed("l2")
     else
         local map = {
@@ -324,37 +324,46 @@ function love.gamepadaxis(joystick, axis, value)
         end
         lastStickY = value
     elseif axis == "triggerleft" then
-        if value > 0.4 and lastTriggerL <= 0.4 then
+        if value > 0.25 and lastTriggerL <= 0.25 then
             if betModal.active then
                 betModal.keypressed("l2")
             else
                 love.keypressed("l2")
             end
         end
-        lastTriggerL = value
+        if value < 0.15 then
+            lastTriggerL = 0
+        else
+            lastTriggerL = value
+        end
     elseif axis == "triggerright" then
-        if value > 0.4 and lastTriggerR <= 0.4 then
+        if value > 0.25 and lastTriggerR <= 0.25 then
             if betModal.active then
                 betModal.keypressed("r2")
             else
                 love.keypressed("r2")
             end
         end
-        lastTriggerR = value
+        if value < 0.15 then
+            lastTriggerR = 0
+        else
+            lastTriggerR = value
+        end
     end
 end
 
--- Fallback для неопознанных generic USB / DirectInput геймпадов
+-- Fallback для неопознанных generic USB / DirectInput геймпадов и цифровых L2/R2
 function love.joystickpressed(joystick, button)
-    if joystick:isGamepad() then return end
-
+    -- В окне ставки проверяем кнопки 5, 6, 7, 8 даже если isGamepad() = true (для кнопочных L2/R2 microswitches)
     if betModal.active then
-        if button == 5 then betModal.keypressed("l1"); return
-        elseif button == 6 then betModal.keypressed("r1"); return
+        if button == 5 or button == 9 then betModal.keypressed("l1"); return
+        elseif button == 6 or button == 10 then betModal.keypressed("r1"); return
         elseif button == 7 then betModal.keypressed("l2"); return
         elseif button == 8 then betModal.keypressed("r2"); return
         end
     end
+
+    if joystick:isGamepad() then return end
 
     if button == 5 or button == 7 then
         handleGlobalInput("prev_tab")
@@ -441,4 +450,10 @@ function love.mousepressed(x, y, button)
     elseif activeTab == 4 and poker.mousepressed then
         poker.mousepressed(x, y)
     end
+end
+
+-- Обработка аппаратного сенсорного экрана (TrimUI / PortMaster / touch screens)
+function love.touchpressed(id, x, y, dx, dy, pressure)
+    local screenW, screenH = love.graphics.getDimensions()
+    love.mousepressed(x * screenW, y * screenH, 1)
 end

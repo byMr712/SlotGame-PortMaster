@@ -85,9 +85,10 @@ end
 
 function betModal.setMax()
     local bal = economy.getBalance()
-    local target = math.min(bal, betModal.maxBet or bal)
+    local target = math.min(bal, (betModal.maxBet and betModal.maxBet > 0) and betModal.maxBet or bal)
     if target > 9999999999 then target = 9999999999 end
     syncDigits(target)
+    betModal.cursor = 10
     for i = 1, 10 do
         if betModal.digits[i] > 0 then
             betModal.cursor = i
@@ -181,22 +182,25 @@ function betModal.mousepressed(x, y)
     local dotW = 12
     local totalGridW = 10 * cellW + 9 * gap + 3 * (dotW + gap)
     local startX = mx + (mw - totalGridW) / 2
-    local startY = my + 92
+    local startY = my + 82 -- Точное совпадение с draw()
 
-    -- 1. Клик по ячейкам цифр и стрелкам
+    -- 1. Клик / тачскрин по ячейкам цифр и стрелкам с увеличенной зоной захвата
     for i = 1, 10 do
         local cx = getCellX(startX, i, cellW, gap, dotW)
-        if x >= cx and x <= cx + cellW then
+        if x >= cx - 3 and x <= cx + cellW + 3 then
+            -- Стрелка вверх ▲
             if y >= startY - 26 and y < startY then
                 betModal.cursor = i
                 betModal.digits[i] = (betModal.digits[i] + 1) % 10
                 betModal.clampToBalance()
                 audio.play("click")
                 return true
+            -- Сама ячейка с цифрой
             elseif y >= startY and y <= startY + cellH then
                 betModal.cursor = i
                 audio.play("click")
                 return true
+            -- Стрелка вниз ▼
             elseif y > startY + cellH and y <= startY + cellH + 26 then
                 betModal.cursor = i
                 betModal.digits[i] = (betModal.digits[i] + 9) % 10
@@ -207,41 +211,46 @@ function betModal.mousepressed(x, y)
         end
     end
 
-    -- 2. Клик по кнопкам быстрого изменения: [L1] /2, [L2] MIN, [R2] MAX, [R1] x2
+    -- 2. Клик / тачскрин по кнопкам быстрого изменения: [L1] /2, [L2] MIN, [R2] MAX, [R1] x2
     local qy = my + 234
     local qh = 36
     local qw = 138
     local qgap = 14
     local qStartX = mx + (mw - (4 * qw + 3 * qgap)) / 2
 
-    if y >= qy and y <= qy + qh then
-        if x >= qStartX and x <= qStartX + qw then
+    -- Щедрая вертикальная зона для пальцев тачскрина (+-10px) и непрерывное покрытие зазоров
+    if y >= qy - 10 and y <= qy + qh + 10 then
+        -- [L1] /2
+        if x >= qStartX - 10 and x < qStartX + qw + qgap / 2 then
             betModal.setHalf()
             return true
-        elseif x >= qStartX + qw + qgap and x <= qStartX + 2 * qw + qgap then
+        -- [L2] MIN
+        elseif x >= qStartX + qw + qgap / 2 and x < qStartX + 2 * qw + 1.5 * qgap then
             betModal.setMin()
             return true
-        elseif x >= qStartX + 2 * (qw + qgap) and x <= qStartX + 3 * qw + 2 * qgap then
+        -- [R2] MAX (гарантированное срабатывание всей плашки MAX и зазоров)
+        elseif x >= qStartX + 2 * qw + 1.5 * qgap and x < qStartX + 3 * qw + 2.5 * qgap then
             betModal.setMax()
             return true
-        elseif x >= qStartX + 3 * (qw + qgap) and x <= qStartX + 4 * qw + 3 * qgap then
+        -- [R1] x2
+        elseif x >= qStartX + 3 * qw + 2.5 * qgap and x <= qStartX + 4 * qw + 3 * qgap + 10 then
             betModal.setDouble()
             return true
         end
     end
 
-    -- 3. Клик по кнопкам [X] CONFIRM / [B] BACK
-    local by = my + 296
+    -- 3. Клик / тачскрин по кнопкам [X] CONFIRM / [B] BACK
+    local by = my + 288 -- Точное совпадение с draw() (было 296)
     local bh = 46
     local bw = 230
     local bgap = 24
     local bStartX = mx + (mw - (2 * bw + bgap)) / 2
 
-    if y >= by and y <= by + bh then
-        if x >= bStartX and x <= bStartX + bw then
+    if y >= by - 8 and y <= by + bh + 8 then
+        if x >= bStartX - 10 and x <= bStartX + bw + bgap / 2 then
             betModal.confirm()
             return true
-        elseif x >= bStartX + bw + bgap and x <= bStartX + 2 * bw + bgap then
+        elseif x > bStartX + bw + bgap / 2 and x <= bStartX + 2 * bw + bgap + 10 then
             audio.play("click")
             betModal.close()
             return true
@@ -254,7 +263,25 @@ end
 function betModal.keypressed(key)
     if not betModal.active then return false end
 
-    if key == "left" then
+    -- Прямой ввод цифр с клавиатуры и Numpad (0-9)
+    local digit = tonumber(key)
+    if not digit and key:sub(1, 2) == "kp" then
+        digit = tonumber(key:sub(3))
+    end
+    if digit and digit >= 0 and digit <= 9 then
+        betModal.digits[betModal.cursor] = digit
+        betModal.clampToBalance()
+        betModal.cursor = math.min(10, betModal.cursor + 1)
+        audio.play("click")
+        return true
+    end
+
+    if key == "backspace" then
+        betModal.digits[betModal.cursor] = 0
+        betModal.cursor = math.max(1, betModal.cursor - 1)
+        audio.play("click")
+        return true
+    elseif key == "left" then
         betModal.cursor = math.max(1, betModal.cursor - 1)
         audio.play("click")
         return true
@@ -262,31 +289,37 @@ function betModal.keypressed(key)
         betModal.cursor = math.min(10, betModal.cursor + 1)
         audio.play("click")
         return true
-    elseif key == "up" then
+    elseif key == "up" or key == "w" then
         betModal.digits[betModal.cursor] = (betModal.digits[betModal.cursor] + 1) % 10
         betModal.clampToBalance()
         audio.play("click")
         return true
-    elseif key == "down" then
+    elseif key == "down" or key == "s" then
         betModal.digits[betModal.cursor] = (betModal.digits[betModal.cursor] + 9) % 10
         betModal.clampToBalance()
         audio.play("click")
         return true
-    elseif key == "l1" or key == "q" then
+    -- [L1] /2: клавиши l1, q, h, /
+    elseif key == "l1" or key == "q" or key == "h" or key == "/" then
         betModal.setHalf()
         return true
-    elseif key == "r1" or key == "e" then
+    -- [R1] x2: клавиши r1, e, *
+    elseif key == "r1" or key == "e" or key == "*" then
         betModal.setDouble()
         return true
-    elseif key == "l2" or key == "z" or key == "lshift" then
+    -- [L2] MIN: клавиши l2, z, lshift, rshift, n, home
+    elseif key == "l2" or key == "z" or key == "lshift" or key == "rshift" or key == "n" or key == "home" then
         betModal.setMin()
         return true
-    elseif key == "r2" or key == "c" or key == "tab" then
+    -- [R2] MAX: клавиши r2, c, tab, m, end
+    elseif key == "r2" or key == "c" or key == "tab" or key == "m" or key == "end" then
         betModal.setMax()
         return true
-    elseif key == "x" or key == "a" or key == "return" or key == "space" then
+    -- Подтверждение: X, A, Enter, Space, Y
+    elseif key == "x" or key == "a" or key == "return" or key == "kpenter" or key == "space" or key == "y" then
         betModal.confirm()
         return true
+    -- Назад / Отмена: B, Escape
     elseif key == "b" or key == "escape" then
         audio.play("click")
         betModal.close()

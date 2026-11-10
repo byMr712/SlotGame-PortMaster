@@ -27,5 +27,5 @@ function love.conf(t)
     t.modules.event = true
     t.modules.physics = false
     t.modules.video = false
-    t.modules.touch = false
+    t.modules.touch = true
 end
