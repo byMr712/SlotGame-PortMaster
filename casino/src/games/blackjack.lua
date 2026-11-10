@@ -21,7 +21,8 @@ bj.playerHand = {}
 bj.dealerHand = {}
 bj.gameOver = true
 bj.hasHit = false
-bj.statusText = ""
+bj.statusKey = ""
+bj.statusWin = 0
 bj.dealAnim = 1
 bj.betDeducted = false
 bj.autoRestartTimer = 0
@@ -30,6 +31,17 @@ bj.controlMode = 0 -- 0: D-Pad (Up/Down/Left), 1: ABX (X=Hit, B=Stand, A=Double)
 function bj.toggleControlMode()
     bj.controlMode = (bj.controlMode == 0) and 1 or 0
     audio.play("click")
+end
+
+function bj.getStatusText()
+    if not bj.statusKey or bj.statusKey == "" then return "" end
+    if bj.statusKey == "blackjack" then
+        return string.format("★ %s! +%s ★", i18n.t("blackjack"), economy.format(bj.statusWin or 0))
+    elseif bj.statusKey == "player_wins" then
+        return string.format("%s +%s", i18n.t("player_wins"), economy.format(bj.statusWin or 0))
+    else
+        return i18n.t(bj.statusKey)
+    end
 end
 
 local cardBackSymbols = { "stardrop", "prism", "ancient", "cherry", "parsnip" }
@@ -163,7 +175,8 @@ function bj.deal()
         table.insert(bj.dealerHand, extraCard)
     end
 
-    bj.statusText = ""
+    bj.statusKey = ""
+    bj.statusWin = 0
 end
 
 function bj.hit()
@@ -190,7 +203,7 @@ function bj.hit()
     local score = bj.calculateScore(bj.playerHand)
     if score > 21 then
         bj.gameOver = true
-        bj.statusText = i18n.t("bust")
+        bj.statusKey = "bust"
         audio.play("fail")
         bj.autoRestartTimer = 2.0
         if bankruptModal.check() then
@@ -227,22 +240,24 @@ function bj.stand()
     if playerBJ and not dealerBJ then
         local win = bj.bet * 2.5
         economy.add(win)
-        bj.statusText = string.format("★ BLACKJACK! +%s ★", economy.format(win))
+        bj.statusKey = "blackjack"
+        bj.statusWin = win
         audio.play("win")
     elseif dealerBJ and not playerBJ then
-        bj.statusText = "DEALER BLACKJACK"
+        bj.statusKey = "dealer_bj"
         audio.play("fail")
     elseif d > 21 or p > d then
         local win = bj.bet * 2
         economy.add(win)
-        bj.statusText = string.format("%s +%s", i18n.t("player_wins"), economy.format(win))
+        bj.statusKey = "player_wins"
+        bj.statusWin = win
         audio.play("win")
     elseif p == d then
         economy.add(bj.bet)
-        bj.statusText = i18n.t("push")
+        bj.statusKey = "push"
         audio.play("click")
     else
-        bj.statusText = i18n.t("dealer_wins")
+        bj.statusKey = "dealer_wins"
         audio.play("fail")
     end
 
@@ -368,9 +383,10 @@ function bj.draw()
     end
 
     -- 2. Результат раздачи (появляется только после завершения руки)
-    if bj.gameOver and #bj.playerHand > 0 and bj.statusText ~= "" then
+    local sTxt = bj.getStatusText()
+    if bj.gameOver and #bj.playerHand > 0 and sTxt ~= "" then
         love.graphics.setColor(0.18, 0.08, 0.03, 0.95)
-        local tw = font and font:getWidth(bj.statusText) or (#bj.statusText * 8)
+        local tw = font and font:getWidth(sTxt) or (#sTxt * 8)
         local pw = math.max(260, tw + 48)
         local px = 512 - pw / 2
         love.graphics.rectangle("fill", px, 316, pw, 26, 5)
@@ -379,7 +395,7 @@ function bj.draw()
         love.graphics.rectangle("line", px, 316, pw, 26, 5)
         love.graphics.setLineWidth(1)
         love.graphics.setColor(1, 0.88, 0.4)
-        love.graphics.print(bj.statusText, 512 - tw / 2, 321)
+        love.graphics.print(sTxt, 512 - tw / 2, 321)
     end
 
     -- 3. Подпись и карты игрока
@@ -483,17 +499,22 @@ function bj.draw()
         love.graphics.print(label, bx + 36, cy - 7)
     end
 
+    local hitLabel = i18n.t("hit")
+    local standLabel = i18n.t("stand")
+    local doubleLabel = i18n.t("double")
+    local switchLabel = i18n.t("switch")
+
     if bj.controlMode == 0 then
-        drawGameBtn(345, 570, 140, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "up", "HIT")
-        drawGameBtn(505, 570, 145, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "down", "STAND")
-        drawGameBtn(670, 570, 150, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "left", "DOUBLE")
+        drawGameBtn(345, 570, 140, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "up", hitLabel)
+        drawGameBtn(505, 570, 145, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "down", standLabel)
+        drawGameBtn(670, 570, 150, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "left", doubleLabel)
     else
-        drawGameBtn(345, 570, 140, 40, {0.68, 0.32, 0.1}, {0.32, 0.62, 0.96}, "X", "HIT")
-        drawGameBtn(505, 570, 145, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "B", "STAND")
-        drawGameBtn(670, 570, 150, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", "DOUBLE")
+        drawGameBtn(345, 570, 140, 40, {0.68, 0.32, 0.1}, {0.32, 0.62, 0.96}, "X", hitLabel)
+        drawGameBtn(505, 570, 145, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "B", standLabel)
+        drawGameBtn(670, 570, 150, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", doubleLabel)
     end
     -- Первая справа кнопка SWITCH (R2), не меняется никогда
-    drawGameBtn(840, 570, 140, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "R2", "SWITCH")
+    drawGameBtn(840, 570, 140, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "R2", switchLabel)
 end
 
 function bj.resetTable()
@@ -503,7 +524,8 @@ function bj.resetTable()
     bj.hasHit = false
     bj.betDeducted = false
     bj.autoRestartTimer = 0
-    bj.statusText = ""
+    bj.statusKey = ""
+    bj.statusWin = 0
     bj.result = nil
     bj.state = "betting"
 end

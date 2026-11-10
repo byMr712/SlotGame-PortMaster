@@ -1,5 +1,5 @@
 local i18n = {}
-i18n.current = "ru"
+i18n.current = "en"
 
 local okRu, ru = pcall(require, "locales.ru")
 local okEn, en = pcall(require, "locales.en")

@@ -40,7 +40,7 @@ end
 
 function langModal.open()
     langModal.active = true
-    langModal.selectedLang = i18n.current or "ru"
+    langModal.selectedLang = i18n.current or "en"
     langModal.langCol = (langModal.selectedLang == "ru") and 2 or 1
     langModal.cursorFocus = 1
     langModal.remember = false
@@ -149,15 +149,16 @@ function langModal.keypressed(key)
         return true
     elseif key == "a" or key == "space" or key == "return" then
         if langModal.cursorFocus == 1 then
-            -- Переключение фокуса на чекбокс
-            langModal.cursorFocus = 2
-            audio.play("click")
+            langModal.confirmPlay()
         elseif langModal.cursorFocus == 2 then
             langModal.remember = not langModal.remember
             audio.play("click")
         elseif langModal.cursorFocus == 3 then
             langModal.confirmPlay()
         end
+        return true
+    elseif key == "b" or key == "escape" or key == "start" then
+        langModal.confirmPlay()
         return true
     end
 

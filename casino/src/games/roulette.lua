@@ -19,7 +19,11 @@ roulette.wheelAngle = 0
 roulette.ballAngle = 0
 roulette.ballRadius = 110
 roulette.history = {}
-roulette.statusText = ""
+roulette.statusKey = ""
+roulette.statusNum = 0
+roulette.statusCol = ""
+roulette.statusPayout = 0
+roulette.statusArg = ""
 roulette.zoom = 0
 roulette.targetZoom = 0
 roulette.holdTimer = 0
@@ -31,10 +35,26 @@ roulette.curCol = 1
 function roulette.resetTable()
     roulette.history = {}
     roulette.bets = {}
-    roulette.statusText = ""
+    roulette.statusKey = ""
     roulette.curRow = 2
     roulette.curCol = 1
     roulette.isSpinning = false
+end
+
+function roulette.getStatusText()
+    if not roulette.statusKey or roulette.statusKey == "" then return "" end
+    if roulette.statusKey == "roulette_result" then
+        local colLocalized = roulette.statusCol == "ZERO" and i18n.t("zero") or (roulette.statusCol == "RED" and i18n.t("red") or i18n.t("black"))
+        if roulette.statusPayout and roulette.statusPayout > 0 then
+            return string.format("★ %d %s! +%s ★", roulette.statusNum or 0, colLocalized, economy.format(roulette.statusPayout))
+        else
+            return string.format("★ %d %s ★", roulette.statusNum or 0, colLocalized)
+        end
+    elseif roulette.statusKey == "opposing_conflict" then
+        return string.format("%s (%s)", i18n.t("opposing_conflict"), string.upper(i18n.t(roulette.statusArg or "")))
+    else
+        return i18n.t(roulette.statusKey)
+    end
 end
 
 function roulette.getCurrentKey()
@@ -97,7 +117,8 @@ function roulette.placeBet()
     local conflict = checkOpposingConflict(key)
     if conflict then
         audio.play("fail")
-        roulette.statusText = string.format("OPPOSING BET NOT ALLOWED! (%s)", string.upper(conflict))
+        roulette.statusKey = "opposing_conflict"
+        roulette.statusArg = conflict
         return
     end
 
@@ -108,7 +129,7 @@ function roulette.placeBet()
         end
         if not roulette.bets[key] and count >= 2 then
             audio.play("fail")
-            roulette.statusText = "CANNOT BET ALL 3 DOZENS AT ONCE!"
+            roulette.statusKey = "cant_bet_3_dozens"
             return
         end
     end
@@ -128,7 +149,7 @@ function roulette.clearBets()
         economy.add(total)
         roulette.bets = {}
         audio.play("click")
-        roulette.statusText = "ALL BETS CLEARED"
+        roulette.statusKey = "bets_cleared"
     end
 end
 
@@ -157,7 +178,7 @@ function roulette.spin()
     roulette.isSpinning = true
     roulette.targetZoom = 1
     roulette.holdTimer = 0
-    roulette.statusText = "★ WHEEL IN MOTION... ★"
+    roulette.statusKey = "wheel_in_motion"
     audio.play("click")
 
     local winIdx = math.random(1, #roulette.wheel)
@@ -221,7 +242,7 @@ function roulette.update(dt)
             roulette.targetZoom = 0
             roulette.isSpinning = false
             roulette.ballActive = false
-            roulette.statusText = "PLACE YOUR BETS"
+            roulette.statusKey = "place_your_bets"
         end
     end
 
@@ -237,7 +258,7 @@ function roulette.update(dt)
     if roulette.spinElapsed >= T_WHEEL_ONLY and not roulette.ballActive then
         roulette.ballActive = true
         audio.play("coin")
-        roulette.statusText = "★ BALL LAUNCHED! ★"
+        roulette.statusKey = "ball_launched"
     end
 
     if roulette.ballActive then
@@ -301,7 +322,10 @@ function roulette.update(dt)
                 audio.play("click")
                 local red = isRed(roulette.winNum)
                 local col = roulette.winNum == 0 and "ZERO" or (red and "RED" or "BLACK")
-                roulette.statusText = string.format("★ %d %s ★", roulette.winNum, col)
+                roulette.statusKey = "roulette_result"
+                roulette.statusNum = roulette.winNum
+                roulette.statusCol = col
+                roulette.statusPayout = 0
             end
 
             -- Шарик идеально центрируется в своем кармане и вращается вместе с колесом
@@ -346,12 +370,15 @@ function roulette.finishSpin()
     table.insert(roulette.history, 1, { num = num, won = won })
     if #roulette.history > 10 then table.remove(roulette.history) end
 
+    roulette.statusKey = "roulette_result"
+    roulette.statusNum = num
+    roulette.statusCol = colName
+    roulette.statusPayout = payout
+
     if payout > 0 then
         economy.add(payout)
-        roulette.statusText = string.format("★ %d %s! +%s ★", num, colName, economy.format(payout))
         audio.play("win")
     else
-        roulette.statusText = string.format("★ %d %s ★", num, colName)
         audio.play("fail")
     end
 
@@ -519,7 +546,7 @@ local function drawGrid(alpha)
     love.graphics.print(economy.format(roulette.selectedChip), 92, 590)
 
     love.graphics.setColor(0.9, 0.8, 0.55, alpha)
-    love.graphics.print("TOTAL:", 220, 574)
+    love.graphics.print(i18n.t("total") .. ":", 220, 574)
     love.graphics.setColor(1, 0.88, 0.4, alpha)
     love.graphics.print(economy.format(roulette.getTotalBet()), 220, 590)
 
@@ -545,10 +572,10 @@ local function drawGrid(alpha)
         love.graphics.print(label, bx + 36, cy - 7)
     end
 
-    drawGameBtn(430, 570, 120, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", "BET")
-    drawGameBtn(565, 570, 130, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "B", "CLEAR")
-    drawGameBtn(710, 570, 130, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "Y", "SET BET")
-    drawGameBtn(855, 570, 120, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "X", "SPIN!")
+    drawGameBtn(430, 570, 120, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", i18n.t("bet"))
+    drawGameBtn(565, 570, 130, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "B", i18n.t("clear"))
+    drawGameBtn(710, 570, 130, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "Y", i18n.t("set_bet"))
+    drawGameBtn(855, 570, 120, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "X", i18n.t("spin") .. "!")
 end
 
 function roulette.draw()
@@ -606,10 +633,11 @@ function roulette.draw()
     end
 
     -- Статус выигрыша справа (подсказки кнопок убраны)
-    if roulette.statusText ~= "" then
-        local stw = font and font:getWidth(roulette.statusText) or (#roulette.statusText * 8)
+    local st = roulette.getStatusText()
+    if st ~= "" then
+        local stw = font and font:getWidth(st) or (#st * 8)
         love.graphics.setColor(1, 0.88, 0.4)
-        love.graphics.print(roulette.statusText, 960 - stw, 100)
+        love.graphics.print(st, 960 - stw, 100)
     end
 
     -- Расчет плавного зума и центровки на всё свободное пространство экрана

@@ -21,7 +21,8 @@ poker.hand = {}
 poker.holds = { false, false, false, false, false }
 poker.phase = "draw"
 poker.focusCard = 1
-poker.comboText = "SELECT CARDS TO HOLD"
+poker.comboKey = "select_hold"
+poker.comboWin = 0
 poker.dealAnim = 1
 poker.betDeducted = false
 poker.autoRestartTimer = 0
@@ -30,6 +31,17 @@ poker.controlMode = 0 -- 0: ABX (A=Hold, X=Draw), 1: D-Pad (Down=Hold, Up=Draw)
 function poker.toggleControlMode()
     poker.controlMode = (poker.controlMode == 0) and 1 or 0
     audio.play("click")
+end
+
+function poker.getComboText()
+    if poker.comboKey == "select_hold" then
+        return i18n.t("select_hold")
+    elseif poker.comboKey == "no_combo" then
+        return i18n.t("no_combo")
+    elseif poker.comboKey and poker.comboKey ~= "" then
+        return string.format("★ %s! +%s ★", i18n.t(poker.comboKey), economy.format(poker.comboWin or 0))
+    end
+    return ""
 end
 
 local suits = { "spade", "heart", "diamond", "club" }
@@ -48,7 +60,8 @@ function poker.resetTable()
     poker.focusCard = 1
     poker.betDeducted = false
     poker.autoRestartTimer = 0
-    poker.comboText = "SELECT CARDS TO HOLD"
+    poker.comboKey = "select_hold"
+    poker.comboWin = 0
 end
 
 function poker.initDeck()
@@ -94,20 +107,20 @@ function poker.evaluateHand()
     for _, v in pairs(counts) do table.insert(cVals, v) end
     table.sort(cVals, function(a,b) return a > b end)
 
-    if isFlush and isStraight and vals[5] == 14 and vals[4] == 13 then return "ROYAL FLUSH", 800 end
-    if isFlush and isStraight then return "STRAIGHT FLUSH", 50 end
-    if cVals[1] == 4 then return "FOUR OF A KIND", 25 end
-    if cVals[1] == 3 and cVals[2] == 2 then return "FULL HOUSE", 9 end
-    if isFlush then return "FLUSH", 6 end
-    if isStraight then return "STRAIGHT", 4 end
-    if cVals[1] == 3 then return "THREE OF A KIND", 3 end
-    if cVals[1] == 2 and cVals[2] == 2 then return "TWO PAIR", 2 end
+    if isFlush and isStraight and vals[5] == 14 and vals[4] == 13 then return "royal_flush", 800 end
+    if isFlush and isStraight then return "straight_flush", 50 end
+    if cVals[1] == 4 then return "four_of_a_kind", 25 end
+    if cVals[1] == 3 and cVals[2] == 2 then return "full_house", 9 end
+    if isFlush then return "flush", 6 end
+    if isStraight then return "straight", 4 end
+    if cVals[1] == 3 then return "three_of_a_kind", 3 end
+    if cVals[1] == 2 and cVals[2] == 2 then return "two_pair", 2 end
     if cVals[1] == 2 then
         for v, cnt in pairs(counts) do
-            if cnt == 2 and v >= 11 then return "JACKS OR BETTER", 1 end
+            if cnt == 2 and v >= 11 then return "jacks_or_better", 1 end
         end
     end
-    return "NO COMBINATION", 0
+    return "no_combo", 0
 end
 
 function poker.deal()
@@ -123,7 +136,8 @@ function poker.deal()
     poker.phase = "draw"
     poker.betDeducted = false
     poker.autoRestartTimer = 0
-    poker.comboText = "SELECT CARDS TO HOLD"
+    poker.comboKey = "select_hold"
+    poker.comboWin = 0
 end
 
 function poker.toggleHold(idx)
@@ -154,14 +168,16 @@ function poker.doDraw()
         end
     end
 
-    local name, mult = poker.evaluateHand()
+    local key, mult = poker.evaluateHand()
     if mult > 0 then
         local win = poker.bet * mult
         economy.add(win)
-        poker.comboText = string.format("★ %s! +%s ★", name, economy.format(win))
+        poker.comboKey = key
+        poker.comboWin = win
         audio.play("win")
     else
-        poker.comboText = "NO COMBINATION"
+        poker.comboKey = "no_combo"
+        poker.comboWin = 0
         audio.play("fail")
     end
 
@@ -242,7 +258,9 @@ local function drawCard(c, x, y, held, focused)
         love.graphics.rectangle("line", x + (cw - 90) / 2, y - 42, 90, 22, 4)
         love.graphics.setLineWidth(1)
         love.graphics.setColor(1, 1, 1)
-        love.graphics.print("HOLD", x + (cw - 90) / 2 + 24, y - 38)
+        local hTxt = i18n.t("hold")
+        local hw = love.graphics.getFont() and love.graphics.getFont():getWidth(hTxt) or 32
+        love.graphics.print(hTxt, x + (cw - 90) / 2 + (90 - hw) / 2, y - 38)
     end
 end
 
@@ -339,8 +357,9 @@ function poker.draw()
     love.graphics.setLineWidth(1)
     love.graphics.setColor(1, 0.88, 0.4)
     local font = love.graphics.getFont()
-    local tw = font and font:getWidth(poker.comboText) or (#poker.comboText * 8)
-    love.graphics.print(poker.comboText, 512 - tw / 2, 464)
+    local cText = poker.getComboText()
+    local tw = font and font:getWidth(cText) or (#cText * 8)
+    love.graphics.print(cText, 512 - tw / 2, 464)
 
     -- Нижняя панель
     love.graphics.setColor(0.22, 0.1, 0.04)
@@ -410,18 +429,22 @@ function poker.draw()
         love.graphics.print(label, bx + 36, cy - 7)
     end
 
+    local holdLabel = i18n.t("hold")
+    local drawLabel = i18n.t("draw")
+    local switchLabel = i18n.t("switch")
+
     if poker.phase == "draw" and poker.autoRestartTimer == 0 then
         if poker.controlMode == 0 then
-            drawGameBtn(510, 570, 140, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", "HOLD")
-            drawGameBtn(675, 570, 145, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "X", "DRAW")
+            drawGameBtn(510, 570, 140, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", holdLabel)
+            drawGameBtn(675, 570, 145, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "X", drawLabel)
         else
-            drawGameBtn(510, 570, 140, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "down", "HOLD")
-            drawGameBtn(675, 570, 145, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "up", "DRAW")
+            drawGameBtn(510, 570, 140, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "down", holdLabel)
+            drawGameBtn(675, 570, 145, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "up", drawLabel)
         end
     end
 
     -- Кнопка SWITCH (R2) справа всегда видна
-    drawGameBtn(840, 570, 140, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "R2", "SWITCH")
+    drawGameBtn(840, 570, 140, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "R2", switchLabel)
 end
 
 function poker.keypressed(key)

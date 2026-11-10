@@ -466,7 +466,7 @@ function slots.draw()
     love.graphics.setColor(0.65, 0.45, 0.15)
     love.graphics.rectangle("line", 360, 544, 220, 48, 4)
     love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print("LAST WIN", 370, 550)
+    love.graphics.print(i18n.t("last_win"), 370, 550)
     if isWin then
         love.graphics.setColor(0.2, 0.95, 0.4)
     else
@@ -503,7 +503,8 @@ function slots.draw()
 
     -- Текст SPIN!
     love.graphics.setColor(1, 0.98, 0.92, spinAlpha)
-    love.graphics.print("SPIN!", bx + 70, 560)
+    local spinText = i18n.t("spin") .. "!"
+    love.graphics.print(spinText, bx + 70, 560)
 end
 
 function slots.keypressed(key)

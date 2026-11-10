@@ -328,7 +328,7 @@ function betModal.draw()
 
     -- Заголовок модального окна
     love.graphics.setColor(1, 0.88, 0.4)
-    local title = "SET YOUR BET"
+    local title = i18n.t("set_your_bet")
     local tw = font and font:getWidth(title) or (#title * 8)
     love.graphics.print(title, mx + mw / 2 - tw / 2, my + 20)
 
@@ -483,7 +483,9 @@ function betModal.draw()
     love.graphics.print("X", cx1 - 4, cy1 - 7)
 
     love.graphics.setColor(1, 1, 1)
-    love.graphics.print("CONFIRM", btn1X + 54, by + 16)
+    local cTxt = i18n.t("confirm")
+    local cwTxt = font and font:getWidth(cTxt) or (#cTxt * 8)
+    love.graphics.print(cTxt, btn1X + 46 + (bw - 46 - cwTxt) / 2, by + 16)
 
     -- Кнопка [B] BACK
     local btn2X = bStartX + bw + bgap
@@ -505,7 +507,9 @@ function betModal.draw()
     love.graphics.print("B", cx2 - 4, cy2 - 7)
 
     love.graphics.setColor(1, 1, 1)
-    love.graphics.print("BACK", btn2X + 66, by + 16)
+    local bTxt = i18n.t("back")
+    local bwTxt = font and font:getWidth(bTxt) or (#bTxt * 8)
+    love.graphics.print(bTxt, btn2X + 46 + (bw - 46 - bwTxt) / 2, by + 16)
 end
 
 return betModal
