@@ -11,12 +11,12 @@ slots.isSpinning = false
 slots.tension = false
 slots.winPulse = 0
 
--- 24 стопа на барабан (RNG лента)
+-- 24 стопа на барабан (RNG лента: сбалансированное казино-распределение)
 slots.symbols = {
-    "cherry", "parsnip", "cherry", "ancient", "parsnip", "cherry",
-    "prism", "cherry", "ancient", "parsnip", "stardrop", "cherry",
-    "ancient", "parsnip", "cherry", "prism", "parsnip", "ancient",
-    "cherry", "stardrop", "parsnip", "cherry", "ancient", "prism"
+    "parsnip", "cherry", "parsnip", "ancient", "parsnip", "prism",
+    "parsnip", "cherry", "parsnip", "ancient", "stardrop", "parsnip",
+    "parsnip", "cherry", "parsnip", "ancient", "parsnip", "prism",
+    "parsnip", "cherry", "parsnip", "ancient", "parsnip", "parsnip"
 }
 
 local CELL_H = 120
@@ -138,18 +138,16 @@ function slots.evaluateWin()
     if s1 == s2 and s2 == s3 then
         if s1 == "stardrop" then mult = 500
         elseif s1 == "prism" then mult = 100
-        elseif s1 == "ancient" then mult = 50
-        elseif s1 == "parsnip" then mult = 30
-        elseif s1 == "cherry" then mult = 20
+        elseif s1 == "ancient" then mult = 30
+        elseif s1 == "cherry" then mult = 15
+        elseif s1 == "parsnip" then mult = 3
         end
-    else
-        local cherries = 0
-        for _, s in ipairs(slots.chosen) do
-            if s == "cherry" then cherries = cherries + 1 end
-        end
-        if cherries == 2 then mult = 5
-        elseif cherries == 1 then mult = 2
-        end
+    elseif s1 == "cherry" and s2 == "cherry" then
+        -- 2 вишни слева направо (барабаны 1 и 2)
+        mult = 3
+    elseif s1 == "cherry" then
+        -- 1 вишня на первом барабане
+        mult = 1
     end
 
     if mult > 0 then
@@ -158,6 +156,7 @@ function slots.evaluateWin()
         economy.add(slots.lastWin)
         audio.play("win")
     else
+        slots.lastWin = 0
         audio.play("fail")
     end
 end
@@ -171,13 +170,13 @@ function slots.draw()
     love.graphics.rectangle("line", 40, 80, 944, 46, 4)
     love.graphics.setLineWidth(1)
 
-    -- Элементы таблицы выплат
+    -- Элементы таблицы выплат (RTP ~99%, hit rate ~33%)
     local payItems = {
-        { sym = "stardrop", mult = "x500", label = "SUPER JACKPOT", col = {1, 0.88, 0.4}, x = 50 },
-        { sym = "prism", mult = "x100", label = "SHARD", col = {1, 1, 1}, x = 275 },
-        { sym = "ancient", mult = "x50", label = "FRUIT", col = {0.4, 0.8, 1}, x = 475 },
-        { sym = "parsnip", mult = "x30", label = "PARSNIP", col = {1, 0.75, 0.2}, x = 655 },
-        { sym = "cherry", mult = "x20", label = "CHERRY", col = {1, 0.45, 0.45}, x = 835 },
+        { sym = "stardrop", mult = "x500", label = "JACKPOT", col = {1, 0.88, 0.4}, x = 50 },
+        { sym = "prism", mult = "x100", label = "SHARD", col = {1, 1, 1}, x = 240 },
+        { sym = "ancient", mult = "x30", label = "FRUIT", col = {0.4, 0.8, 1}, x = 430 },
+        { sym = "cherry", mult = "x15", label = "CHERRY", col = {1, 0.45, 0.45}, x = 620 },
+        { sym = "parsnip", mult = "x3", label = "PARSNIP", col = {1, 0.75, 0.2}, x = 810 },
     }
 
     for _, item in ipairs(payItems) do
