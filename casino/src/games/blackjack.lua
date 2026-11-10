@@ -146,7 +146,7 @@ function bj.hit()
         if bankruptModal.check() then
             -- открыто окно банкротства
         elseif bj.bet > economy.getBalance() then
-            bj.bet = math.max(1, economy.getBalance())
+            bj.bet = 100
         end
     end
 end
@@ -187,7 +187,7 @@ function bj.stand()
     if bankruptModal.check() then
         -- открыто окно банкротства
     elseif bj.bet > economy.getBalance() then
-        bj.bet = math.max(1, economy.getBalance())
+        bj.bet = 100
     end
 end
 

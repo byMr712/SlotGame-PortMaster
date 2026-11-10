@@ -38,6 +38,14 @@ function langModal.init()
     langModal.remember = false
 end
 
+function langModal.open()
+    langModal.active = true
+    langModal.selectedLang = i18n.current or "ru"
+    langModal.langCol = (langModal.selectedLang == "ru") and 2 or 1
+    langModal.cursorFocus = 1
+    langModal.remember = false
+end
+
 function langModal.saveChoice()
     if not love.filesystem then return end
     local json = string.format('{\n  "lang": "%s",\n  "remember": %s\n}', langModal.selectedLang, tostring(langModal.remember))
@@ -48,6 +56,10 @@ function langModal.confirmPlay()
     i18n.setLanguage(langModal.selectedLang)
     if langModal.remember then
         langModal.saveChoice()
+    else
+        if love.filesystem and love.filesystem.remove then
+            pcall(function() love.filesystem.remove(CONFIG_FILE) end)
+        end
     end
     audio.play("click")
     langModal.active = false

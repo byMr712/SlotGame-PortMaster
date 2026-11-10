@@ -1,5 +1,5 @@
 local economy = {
-    balance = 100000,
+    balance = 10000,
     currency = "USD"
 }
 
