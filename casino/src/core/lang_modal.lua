@@ -53,6 +53,65 @@ function langModal.confirmPlay()
     langModal.active = false
 end
 
+function langModal.mousepressed(x, y)
+    if not langModal.active then return false end
+
+    local mx = 262
+    local my = 194
+    local mw = 500
+    local mh = 360
+
+    local btnW = 180
+    local btnH = 52
+    local gap = 40
+    local startBtnX = mx + (mw - (btnW * 2 + gap)) / 2
+    local btnY = my + 85
+    local ruX = startBtnX + btnW + gap
+
+    -- Клик по кнопке English
+    if x >= startBtnX and x <= startBtnX + btnW and y >= btnY and y <= btnY + btnH then
+        langModal.cursorFocus = 1
+        langModal.langCol = 1
+        langModal.selectedLang = "en"
+        i18n.setLanguage("en")
+        audio.play("click")
+        return true
+    end
+
+    -- Клик по кнопке Русский
+    if x >= ruX and x <= ruX + btnW and y >= btnY and y <= btnY + btnH then
+        langModal.cursorFocus = 1
+        langModal.langCol = 2
+        langModal.selectedLang = "ru"
+        i18n.setLanguage("ru")
+        audio.play("click")
+        return true
+    end
+
+    -- Клик по чекбоксу "Запомнить мой выбор"
+    local cbY = my + 175
+    local cbBoxX = mx + 90
+    if x >= cbBoxX and x <= cbBoxX + 320 and y >= cbY - 4 and y <= cbY + 28 then
+        langModal.cursorFocus = 2
+        langModal.remember = not langModal.remember
+        audio.play("click")
+        return true
+    end
+
+    -- Клик по кнопке "ИГРАТЬ" / "PLAY"
+    local playW = 220
+    local playH = 46
+    local playX = mx + (mw - playW) / 2
+    local playY = my + 230
+    if x >= playX and x <= playX + playW and y >= playY and y <= playY + playH then
+        langModal.cursorFocus = 3
+        langModal.confirmPlay()
+        return true
+    end
+
+    return true
+end
+
 function langModal.keypressed(key)
     if not langModal.active then return false end
 

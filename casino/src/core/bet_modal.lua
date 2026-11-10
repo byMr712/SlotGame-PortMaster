@@ -69,6 +69,60 @@ function betModal.update(dt)
     end
 end
 
+function betModal.mousepressed(x, y)
+    if not betModal.active then return false end
+
+    local mx = 232
+    local my = 174
+    local mw = 560
+    local mh = 410
+
+    local cellW = 54
+    local cellH = 74
+    local gap = 10
+    local totalGridW = 7 * cellW + 6 * gap
+    local startX = mx + (mw - totalGridW) / 2
+    local startY = my + 104
+
+    -- Клик по ячейкам цифр и стрелкам
+    for i = 1, 7 do
+        local cx = startX + (i - 1) * (cellW + gap)
+        if x >= cx and x <= cx + cellW then
+            if y >= startY - 26 and y < startY then
+                -- Стрелка вверх
+                betModal.cursor = i
+                betModal.digits[i] = (betModal.digits[i] + 1) % 10
+                audio.play("click")
+                return true
+            elseif y >= startY and y <= startY + cellH then
+                -- Сама ячейка
+                betModal.cursor = i
+                audio.play("click")
+                return true
+            elseif y > startY + cellH and y <= startY + cellH + 26 then
+                -- Стрелка вниз
+                betModal.cursor = i
+                betModal.digits[i] = (betModal.digits[i] + 9) % 10
+                audio.play("click")
+                return true
+            end
+        end
+    end
+
+    -- Клик по нижней плашке: Confirm / Back
+    if x >= mx + 24 and x <= mx + mw - 24 and y >= my + 300 and y <= my + 348 then
+        if x < mx + mw / 2 then
+            betModal.confirm()
+        else
+            audio.play("click")
+            betModal.close()
+        end
+        return true
+    end
+
+    return true
+end
+
 function betModal.keypressed(key)
     if not betModal.active then return false end
 

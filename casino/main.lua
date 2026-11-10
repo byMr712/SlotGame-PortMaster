@@ -199,3 +199,48 @@ function love.gamepadpressed(joystick, button)
         end
     end
 end
+
+-- Обработка кликов мыши / тачскрина
+function love.mousepressed(x, y, button)
+    if button ~= 1 then return end
+
+    -- 1. Модальные окна имеют абсолютный приоритет
+    if langModal.active then
+        langModal.mousepressed(x, y)
+        return
+    end
+
+    if betModal.active then
+        betModal.mousepressed(x, y)
+        return
+    end
+
+    -- 2. Верхняя панель: Переключение залов и глобальные кнопки
+    if y >= 18 and y <= 62 then
+        if x >= 30 and x <= 390 then
+            if x <= 210 then
+                handleGlobalInput("prev_tab")
+            else
+                handleGlobalInput("next_tab")
+            end
+            return
+        elseif x >= 690 and x <= 950 then
+            handleGlobalInput("currency")
+            return
+        elseif x >= 955 and x <= 1000 then
+            handleGlobalInput("language")
+            return
+        end
+    end
+
+    -- 3. Делегирование клика активной игре
+    if activeTab == 1 and slots.mousepressed then
+        slots.mousepressed(x, y)
+    elseif activeTab == 2 and bj.mousepressed then
+        bj.mousepressed(x, y)
+    elseif activeTab == 3 and roulette.mousepressed then
+        roulette.mousepressed(x, y)
+    elseif activeTab == 4 and poker.mousepressed then
+        poker.mousepressed(x, y)
+    end
+end

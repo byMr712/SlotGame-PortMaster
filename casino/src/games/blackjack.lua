@@ -320,16 +320,28 @@ function bj.draw()
         love.graphics.circle("line", cx, cy, 11)
         love.graphics.setLineWidth(1)
 
-        -- Стрелка D-Pad
+        -- Стрелка D-Pad (пиксель-арт геометрия без глитчей растрирования)
         love.graphics.setColor(0.08, 0.03, 0.01)
         if dir == "up" then
-            love.graphics.polygon("fill", cx, cy - 5, cx - 4, cy + 3, cx + 4, cy + 3)
+            love.graphics.rectangle("fill", cx - 1, cy - 5, 2, 2)
+            love.graphics.rectangle("fill", cx - 3, cy - 3, 6, 2)
+            love.graphics.rectangle("fill", cx - 5, cy - 1, 10, 2)
+            love.graphics.rectangle("fill", cx - 2, cy + 1, 4, 4)
         elseif dir == "down" then
-            love.graphics.polygon("fill", cx, cy + 5, cx - 4, cy - 3, cx + 4, cy - 3)
+            love.graphics.rectangle("fill", cx - 2, cy - 5, 4, 4)
+            love.graphics.rectangle("fill", cx - 5, cy - 1, 10, 2)
+            love.graphics.rectangle("fill", cx - 3, cy + 1, 6, 2)
+            love.graphics.rectangle("fill", cx - 1, cy + 3, 2, 2)
         elseif dir == "left" then
-            love.graphics.polygon("fill", cx - 5, cy, cx + 3, cy - 4, cx + 3, cy + 4)
+            love.graphics.rectangle("fill", cx - 5, cy - 1, 2, 2)
+            love.graphics.rectangle("fill", cx - 3, cy - 3, 2, 6)
+            love.graphics.rectangle("fill", cx - 1, cy - 5, 2, 10)
+            love.graphics.rectangle("fill", cx + 1, cy - 2, 4, 4)
         elseif dir == "right" then
-            love.graphics.polygon("fill", cx + 5, cy, cx - 3, cy - 4, cx - 3, cy + 4)
+            love.graphics.rectangle("fill", cx - 5, cy - 2, 4, 4)
+            love.graphics.rectangle("fill", cx - 1, cy - 5, 2, 10)
+            love.graphics.rectangle("fill", cx + 1, cy - 3, 2, 6)
+            love.graphics.rectangle("fill", cx + 3, cy - 1, 2, 2)
         end
 
         -- Текст действия
@@ -365,6 +377,39 @@ function bj.keypressed(key)
     elseif key == "x" or key == "space" or key == "return" then
         if bj.gameOver then bj.deal() end
     end
+end
+
+function bj.mousepressed(x, y)
+    -- Окно ставки [Y] (55, 566, 260, 48)
+    if x >= 55 and x <= 315 and y >= 566 and y <= 614 then
+        if bj.gameOver then
+            betModal.open(bj.bet, 100, economy.getBalance(), function(newBet)
+                bj.bet = newBet
+            end)
+        end
+        return true
+    end
+
+    -- Кнопки действий:
+    -- HIT (вверх): 345, 570, 140, 40
+    if x >= 345 and x <= 485 and y >= 570 and y <= 610 then
+        bj.hit()
+        return true
+    -- STAND (вниз): 505, 570, 145, 40
+    elseif x >= 505 and x <= 650 and y >= 570 and y <= 610 then
+        bj.stand()
+        return true
+    -- DOUBLE (влево): 670, 570, 150, 40
+    elseif x >= 670 and x <= 820 and y >= 570 and y <= 610 then
+        bj.double()
+        return true
+    -- DEAL (вправо): 840, 570, 140, 40
+    elseif x >= 840 and x <= 980 and y >= 570 and y <= 610 then
+        if bj.gameOver then bj.deal() end
+        return true
+    end
+
+    return false
 end
 
 return bj

@@ -375,4 +375,24 @@ function slots.keypressed(key)
     end
 end
 
+function slots.mousepressed(x, y)
+    -- Окно ставки [Y] (60, 544, 270, 48)
+    if x >= 60 and x <= 330 and y >= 544 and y <= 592 then
+        if not slots.isSpinning then
+            betModal.open(slots.bet, 100, economy.getBalance(), function(newBet)
+                slots.bet = newBet
+            end)
+        end
+        return true
+    end
+
+    -- Кнопка SPIN (710, 540, 254, 56)
+    if x >= 710 and x <= 964 and y >= 540 and y <= 596 then
+        slots.spin()
+        return true
+    end
+
+    return false
+end
+
 return slots

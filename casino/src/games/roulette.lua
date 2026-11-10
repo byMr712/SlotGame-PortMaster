@@ -656,4 +656,97 @@ function roulette.keypressed(key)
     end
 end
 
+function roulette.mousepressed(x, y)
+    if roulette.isSpinning then return false end
+
+    -- Плашка фишки / ставки [Y]
+    if x >= 50 and x <= 410 and y >= 566 and y <= 614 then
+        betModal.open(roulette.selectedChip, 100, economy.getBalance(), function(newChip)
+            roulette.selectedChip = newChip
+        end)
+        return true
+    end
+
+    -- Кнопки действий снизу
+    -- BET (A): 430, 570, 120, 40
+    if x >= 430 and x <= 550 and y >= 570 and y <= 610 then
+        roulette.placeBet()
+        return true
+    -- CLEAR (B): 565, 570, 130, 40
+    elseif x >= 565 and x <= 695 and y >= 570 and y <= 610 then
+        roulette.clearBets()
+        return true
+    -- SET BET (Y): 710, 570, 130, 40
+    elseif x >= 710 and x <= 840 and y >= 570 and y <= 610 then
+        betModal.open(roulette.selectedChip, 100, economy.getBalance(), function(newChip)
+            roulette.selectedChip = newChip
+        end)
+        return true
+    -- SPIN (X): 855, 570, 120, 40
+    elseif x >= 855 and x <= 975 and y >= 570 and y <= 610 then
+        roulette.spin()
+        return true
+    end
+
+    local tx, ty = 340, 140
+    local cellW, cellH = 48, 56
+    local totalW = cellW * 12 + 22
+
+    -- Клик по Zero
+    if x >= tx and x <= tx + totalW and y >= ty and y <= ty + 36 then
+        roulette.curRow = 0
+        roulette.curCol = 1
+        roulette.placeBet()
+        return true
+    end
+
+    -- Клик по сетке чисел (3 строки по 12)
+    for rowIdx = 1, 3 do
+        for colIdx = 1, 12 do
+            local cx = tx + (colIdx - 1) * (cellW + 2)
+            local cy = ty + 40 + (rowIdx - 1) * (cellH + 2)
+            if x >= cx and x <= cx + cellW and y >= cy and y <= cy + cellH then
+                roulette.curRow = rowIdx
+                roulette.curCol = colIdx
+                roulette.placeBet()
+                return true
+            end
+        end
+    end
+
+    -- Клик по дюжинам
+    local dozY = ty + 40 + 3 * (cellH + 2) + 2
+    local dozW = (totalW - 4) / 3
+    local dozH = 34
+    if y >= dozY and y <= dozY + dozH then
+        for colIdx = 1, 3 do
+            local cx = tx + (colIdx - 1) * (dozW + 2)
+            if x >= cx and x <= cx + dozW then
+                roulette.curRow = 4
+                roulette.curCol = (colIdx == 1) and 1 or ((colIdx == 2) and 5 or 9)
+                roulette.placeBet()
+                return true
+            end
+        end
+    end
+
+    -- Клик по внешним ставкам (1-18, EVEN, RED, BLACK, ODD, 19-36)
+    local outY = dozY + dozH + 4
+    local outW = (totalW - 10) / 6
+    local outH = 34
+    if y >= outY and y <= outY + outH then
+        for colIdx = 1, 6 do
+            local cx = tx + (colIdx - 1) * (outW + 2)
+            if x >= cx and x <= cx + outW then
+                roulette.curRow = 5
+                roulette.curCol = (colIdx - 1) * 2 + 1
+                roulette.placeBet()
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
 return roulette

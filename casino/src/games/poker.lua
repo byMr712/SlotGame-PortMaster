@@ -289,4 +289,45 @@ function poker.keypressed(key)
     end
 end
 
+function poker.mousepressed(x, y)
+    -- Окно ставки [Y] (55, 566, 260, 48)
+    if x >= 55 and x <= 315 and y >= 566 and y <= 614 then
+        if poker.phase == "deal" then
+            betModal.open(poker.bet, 100, economy.getBalance(), function(newBet)
+                poker.bet = newBet
+            end)
+        end
+        return true
+    end
+
+    -- Клик по картам: y in 260..400
+    if poker.phase == "draw" and y >= 260 and y <= 400 then
+        for i = 1, 5 do
+            local cx = 140 + (i - 1) * 150
+            if x >= cx and x <= cx + 100 then
+                poker.focusCard = i
+                poker.holds[i] = not poker.holds[i]
+                audio.play("click")
+                return true
+            end
+        end
+    end
+
+    -- Кнопки действий:
+    -- HOLD / UNHOLD (A): 580, 570, 160, 40
+    if x >= 580 and x <= 740 and y >= 570 and y <= 610 then
+        if poker.phase == "draw" then
+            poker.holds[poker.focusCard] = not poker.holds[poker.focusCard]
+            audio.play("click")
+        end
+        return true
+    -- DRAW / DEAL (X): 760, 570, 150, 40
+    elseif x >= 760 and x <= 910 and y >= 570 and y <= 610 then
+        poker.drawOrDeal()
+        return true
+    end
+
+    return false
+end
+
 return poker
