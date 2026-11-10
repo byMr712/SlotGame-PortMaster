@@ -250,8 +250,25 @@ function bj.draw()
     -- Нижняя панель действий
     love.graphics.setColor(0.22, 0.1, 0.04)
     love.graphics.rectangle("fill", 40, 560, 944, 60, 4)
+
+    -- Панель ставки (D-Pad)
+    love.graphics.setColor(0.12, 0.05, 0.02)
+    love.graphics.rectangle("fill", 52, 566, 290, 48, 4)
+    love.graphics.setColor(0.65, 0.45, 0.15)
+    love.graphics.rectangle("line", 52, 566, 290, 48, 4)
+
+    love.graphics.setColor(0.9, 0.8, 0.55)
+    love.graphics.print("BET [▲/▼]:", 62, 572)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(string.format("%s: %s", i18n.t("bet"), economy.format(bj.bet)), 60, 580)
+    love.graphics.print(economy.format(bj.bet), 150, 572)
+
+    love.graphics.setColor(0.75, 0.7, 0.55)
+    if bj.gameOver then
+        love.graphics.print("[▲/▼ ±100]  [◄/► ±1K]", 62, 592)
+    else
+        love.graphics.setColor(0.6, 0.5, 0.4)
+        love.graphics.print("LOCKED FOR ROUND", 62, 592)
+    end
 
     local function drawGameBtn(bx, by, bw, bh, bCol, keyCol, keyChar, label)
         -- Темная тень
@@ -287,13 +304,23 @@ function bj.draw()
 end
 
 function bj.keypressed(key)
-    if key == "up" then
-        bj.bet = bj.bet + 100
-        audio.play("click")
-    elseif key == "down" then
-        bj.bet = math.max(100, bj.bet - 100)
-        audio.play("click")
-    elseif key == "a" then
+    if bj.gameOver then
+        if key == "up" then
+            bj.bet = bj.bet + 100
+            audio.play("click")
+        elseif key == "down" then
+            bj.bet = math.max(100, bj.bet - 100)
+            audio.play("click")
+        elseif key == "right" then
+            bj.bet = bj.bet + 1000
+            audio.play("click")
+        elseif key == "left" then
+            bj.bet = math.max(100, bj.bet - 1000)
+            audio.play("click")
+        end
+    end
+
+    if key == "a" then
         bj.hit()
     elseif key == "b" then
         bj.stand()

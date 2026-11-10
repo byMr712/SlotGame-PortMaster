@@ -438,9 +438,25 @@ local function drawGrid(alpha)
 
     love.graphics.setColor(0.22, 0.1, 0.04, alpha)
     love.graphics.rectangle("fill", 40, 560, 944, 60, 4)
+
+    -- Панель фишки и общей ставки
+    love.graphics.setColor(0.12, 0.05, 0.02, alpha)
+    love.graphics.rectangle("fill", 50, 566, 390, 48, 4)
+    love.graphics.setColor(0.65, 0.45, 0.15, alpha)
+    love.graphics.rectangle("line", 50, 566, 390, 48, 4)
+
+    love.graphics.setColor(0.9, 0.8, 0.55, alpha)
+    love.graphics.print("CHIP [Y]:", 60, 572)
     love.graphics.setColor(1, 0.88, 0.4, alpha)
-    love.graphics.print(string.format("%s: %s", i18n.t("chip"), economy.format(roulette.selectedChip)), 60, 580)
-    love.graphics.print(string.format("%s: %s", i18n.t("bet"), economy.format(roulette.getTotalBet())), 260, 580)
+    love.graphics.print(economy.format(roulette.selectedChip), 135, 572)
+
+    love.graphics.setColor(0.9, 0.8, 0.55, alpha)
+    love.graphics.print("TOTAL:", 235, 572)
+    love.graphics.setColor(1, 0.88, 0.4, alpha)
+    love.graphics.print(economy.format(roulette.getTotalBet()), 295, 572)
+
+    love.graphics.setColor(0.75, 0.7, 0.55, alpha)
+    love.graphics.print("[D-PAD] MOVE CURSOR  •  [A] PLACE  •  [B] UNDO", 60, 592)
 
     local function drawGameBtn(bx, by, bw, bh, bCol, keyCol, keyChar, label)
         love.graphics.setColor(0.08, 0.03, 0.01, alpha)

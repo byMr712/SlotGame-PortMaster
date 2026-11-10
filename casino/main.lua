@@ -114,7 +114,7 @@ function love.draw()
     love.graphics.setColor(0.12, 0.05, 0.02)
     love.graphics.rectangle("fill", 24, 718, 976, 28, 4)
     love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print("[L1/R1] ROOMS  •  [D-PAD] NAVIGATE  •  [A] ACTION  •  [X] SPIN/DEAL", 36, 725)
+    love.graphics.print("[L1/R1] ROOMS  •  [D-PAD] BET/NAVIGATE  •  [A] ACTION  •  [X] SPIN/DEAL", 36, 725)
     love.graphics.setColor(1, 0.88, 0.4)
     love.graphics.print("TRIMUI BRICK EDITION", 800, 725)
 end

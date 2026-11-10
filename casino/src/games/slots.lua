@@ -281,20 +281,41 @@ function slots.draw()
     love.graphics.setColor(0.78, 0.52, 0.12)
     love.graphics.rectangle("line", 40, 524, 944, 88, 6)
 
-    -- Кнопки ставок
+    -- Кнопки ставок с тактильными D-Pad/кнопочными колпачками
     local betBtns = {
-        { label = "-100", x = 60 },
-        { label = "+100", x = 125 },
-        { label = "+1K", x = 190 },
-        { label = "ALL-IN", x = 255 },
+        { dir = "▼", label = "-100", x = 52, w = 64, isKey = false },
+        { dir = "▲", label = "+100", x = 120, w = 64, isKey = false },
+        { dir = "►", label = "+1K",  x = 188, w = 64, isKey = false },
+        { dir = "Y", label = "MAX",  x = 256, w = 68, isKey = true },
     }
     for _, btn in ipairs(betBtns) do
-        love.graphics.setColor(0.15, 0.06, 0.02)
-        love.graphics.rectangle("fill", btn.x, 544, 58, 48, 4)
-        love.graphics.setColor(0.78, 0.52, 0.12)
-        love.graphics.rectangle("line", btn.x, 544, 58, 48, 4)
-        love.graphics.setColor(1, 0.88, 0.4)
-        love.graphics.print(btn.label, btn.x + 8, 560)
+        -- Тень
+        love.graphics.setColor(0.08, 0.03, 0.01)
+        love.graphics.rectangle("fill", btn.x, 544, btn.w, 48, 4)
+        -- Корпус кнопки
+        love.graphics.setColor(0.65, 0.30, 0.10)
+        love.graphics.rectangle("fill", btn.x + 2, 546, btn.w - 4, 44, 3)
+        -- Фаска
+        love.graphics.setColor(0.85, 0.45, 0.18)
+        love.graphics.rectangle("line", btn.x + 2, 546, btn.w - 4, 44, 3)
+
+        -- Колпачок D-pad или круглая кнопка Y
+        if btn.isKey then
+            love.graphics.setColor(0.95, 0.78, 0.20)
+            love.graphics.circle("fill", btn.x + 16, 568, 9)
+            love.graphics.setColor(0.15, 0.05, 0.02)
+            love.graphics.print(btn.dir, btn.x + 12, 561)
+        else
+            love.graphics.setColor(0.18, 0.08, 0.04)
+            love.graphics.rectangle("fill", btn.x + 6, 558, 18, 20, 2)
+            love.graphics.setColor(0.78, 0.52, 0.12)
+            love.graphics.rectangle("line", btn.x + 6, 558, 18, 20, 2)
+            love.graphics.setColor(1, 0.88, 0.4)
+            love.graphics.print(btn.dir, btn.x + 10, 561)
+        end
+
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.print(btn.label, btn.x + 28, 561)
     end
 
     -- Информационные плашки: СТАВКА и ВЫИГРЫШ
@@ -357,6 +378,12 @@ function slots.keypressed(key)
         audio.play("click")
     elseif key == "down" then
         slots.bet = math.max(100, slots.bet - 100)
+        audio.play("click")
+    elseif key == "right" then
+        slots.bet = slots.bet + 1000
+        audio.play("click")
+    elseif key == "left" then
+        slots.bet = math.max(100, slots.bet - 1000)
         audio.play("click")
     elseif key == "y" then
         slots.bet = economy.getBalance()

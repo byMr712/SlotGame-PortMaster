@@ -197,9 +197,19 @@ function poker.draw()
     -- Нижняя панель
     love.graphics.setColor(0.22, 0.1, 0.04)
     love.graphics.rectangle("fill", 40, 560, 944, 60, 4)
+    -- Панель ставки (D-Pad)
+    love.graphics.setColor(0.12, 0.05, 0.02)
+    love.graphics.rectangle("fill", 52, 566, 290, 48, 4)
+    love.graphics.setColor(0.65, 0.45, 0.15)
+    love.graphics.rectangle("line", 52, 566, 290, 48, 4)
+
+    love.graphics.setColor(0.9, 0.8, 0.55)
+    love.graphics.print("BET [▲/▼]:", 62, 572)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(string.format("%s: %s", i18n.t("bet"), economy.format(poker.bet)), 60, 580)
-    love.graphics.print("[D-Pad] SELECT", 240, 580)
+    love.graphics.print(economy.format(poker.bet), 150, 572)
+
+    love.graphics.setColor(0.75, 0.7, 0.55)
+    love.graphics.print("[▲/▼ BET]  [◄/► SELECT]", 62, 592)
 
     local function drawGameBtn(bx, by, bw, bh, bCol, keyCol, keyChar, label)
         love.graphics.setColor(0.08, 0.03, 0.01)
