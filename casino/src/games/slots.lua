@@ -11,6 +11,7 @@ slots.lastWin = 0
 slots.isSpinning = false
 slots.tension = false
 slots.winPulse = 0
+slots.winLineTimer = 0
 
 -- 24 стопа на барабан (RNG лента: сбалансированное казино-распределение)
 slots.symbols = {
@@ -55,6 +56,7 @@ function slots.spin()
     slots.lastWin = 0
     slots.tension = false
     slots.winPulse = 0
+    slots.winLineTimer = 0
 
     for r = 1, 3 do
         local stop = math.random(1, NUM_SYMBOLS)
@@ -76,8 +78,11 @@ function slots.spin()
 end
 
 function slots.update(dt)
-    if slots.winPulse > 0 then
-        slots.winPulse = slots.winPulse + dt * 4
+    if slots.winLineTimer > 0 then
+        slots.winLineTimer = math.max(0, slots.winLineTimer - dt)
+        slots.winPulse = slots.winPulse + dt * 8
+    else
+        slots.winPulse = 0
     end
 
     if not slots.isSpinning then return end
@@ -154,10 +159,12 @@ function slots.evaluateWin()
     if mult > 0 then
         slots.lastWin = slots.bet * mult
         slots.winPulse = 0.01
+        slots.winLineTimer = 3.0
         economy.add(slots.lastWin)
         audio.play("win")
     else
         slots.lastWin = 0
+        slots.winLineTimer = 0
         audio.play("fail")
     end
 end
@@ -269,30 +276,28 @@ function slots.draw()
         end
     end
 
-    -- 4. Линия выплат (Payline 1)
-    local isWin = (slots.lastWin > 0)
-    if isWin then
-        local pulse = math.sin(slots.winPulse) * 0.3 + 0.7
-        love.graphics.setColor(1, 0.88, 0.2, pulse)
-        love.graphics.rectangle("fill", 50, centerY - 3, 924, 6)
-    else
-        love.graphics.setColor(0.85, 0.15, 0.1, 0.65)
-        love.graphics.rectangle("fill", 50, centerY - 2, 924, 4)
-        love.graphics.setColor(1, 0.88, 0.4, 0.75)
-        love.graphics.rectangle("line", 50, centerY - 2, 924, 4)
-    end
+    -- 4. Линия выплат (показывается мигающей ТОЛЬКО первые 3 секунды после выигрыша, по умолчанию скрыта)
+    if slots.winLineTimer > 0 then
+        local pulse = math.sin(slots.winPulse) * 0.35 + 0.65
+        -- Золотая аура выигрыша
+        love.graphics.setColor(1, 0.84, 0.1, pulse * 0.9)
+        love.graphics.rectangle("fill", 50, centerY - 4, 924, 8)
+        -- Бело-желтая яркая сердцевина
+        love.graphics.setColor(1, 1, 0.85, pulse)
+        love.graphics.rectangle("fill", 50, centerY - 1, 924, 2)
 
-    -- Маркеры LINE 1 по бокам
-    love.graphics.setColor(0.65, 0.12, 0.08)
-    love.graphics.rectangle("fill", 48, centerY - 14, 46, 28, 4)
-    love.graphics.rectangle("fill", 930, centerY - 14, 46, 28, 4)
-    love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", 48, centerY - 14, 46, 28, 4)
-    love.graphics.rectangle("line", 930, centerY - 14, 46, 28, 4)
-    love.graphics.setLineWidth(1)
-    love.graphics.print("▶ 1", 58, centerY - 8)
-    love.graphics.print("1 ◀", 940, centerY - 8)
+        -- Маркеры LINE 1 по бокам
+        love.graphics.setColor(0.65, 0.12, 0.08, pulse)
+        love.graphics.rectangle("fill", 48, centerY - 14, 46, 28, 4)
+        love.graphics.rectangle("fill", 930, centerY - 14, 46, 28, 4)
+        love.graphics.setColor(1, 0.88, 0.4, pulse)
+        love.graphics.setLineWidth(2)
+        love.graphics.rectangle("line", 48, centerY - 14, 46, 28, 4)
+        love.graphics.rectangle("line", 930, centerY - 14, 46, 28, 4)
+        love.graphics.setLineWidth(1)
+        love.graphics.print("▶ 1", 58, centerY - 8)
+        love.graphics.print("1 ◀", 940, centerY - 8)
+    end
 
     -- 5. Нижняя панель управления слотов
     love.graphics.setColor(0.22, 0.1, 0.04)
