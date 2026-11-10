@@ -14,6 +14,14 @@ local bankruptModal = require("src.core.bankrupt_modal")
 local activeTab = 1 -- 1: Slots (Стартуем всегда со слотов!), 2: BJ, 3: Roulette, 4: Poker
 
 function love.load()
+    if love.joystick and love.joystick.loadGamepadMappings then
+        pcall(function()
+            if love.filesystem and love.filesystem.getInfo and love.filesystem.getInfo("gamecontrollerdb.txt") then
+                love.joystick.loadGamepadMappings("gamecontrollerdb.txt")
+            end
+        end)
+    end
+
     sprites.init()
     audio.init()
     slots.init()
@@ -240,7 +248,11 @@ function love.keypressed(key)
     end
 end
 
--- SDL2 GameController для TrimUI Brick
+-- Поддержка геймпадов: SDL2 GameController + DirectInput fallback + Аналоговые стики
+local stickDeadzone = 0.5
+local lastStickX = 0
+local lastStickY = 0
+
 function love.gamepadpressed(joystick, button)
     if button == "leftshoulder" then
         handleGlobalInput("prev_tab")
@@ -251,7 +263,6 @@ function love.gamepadpressed(joystick, button)
     elseif button == "start" then
         handleGlobalInput("language")
     else
-        -- Трансляция кнопок геймпада в keypressed
         local map = {
             dpup = "up", dpdown = "down", dpleft = "left", dpright = "right",
             a = "a", b = "b", x = "x", y = "y"
@@ -260,6 +271,67 @@ function love.gamepadpressed(joystick, button)
             love.keypressed(map[button])
         end
     end
+end
+
+-- Навигация левым аналоговым стиком как D-pad
+function love.gamepadaxis(joystick, axis, value)
+    if axis == "leftx" then
+        if value < -stickDeadzone and lastStickX >= -stickDeadzone then
+            love.keypressed("left")
+        elseif value > stickDeadzone and lastStickX <= stickDeadzone then
+            love.keypressed("right")
+        end
+        lastStickX = value
+    elseif axis == "lefty" then
+        if value < -stickDeadzone and lastStickY >= -stickDeadzone then
+            love.keypressed("up")
+        elseif value > stickDeadzone and lastStickY <= stickDeadzone then
+            love.keypressed("down")
+        end
+        lastStickY = value
+    end
+end
+
+-- Fallback для неопознанных generic USB / DirectInput геймпадов
+function love.joystickpressed(joystick, button)
+    if joystick:isGamepad() then return end
+
+    if button == 5 or button == 7 then
+        handleGlobalInput("prev_tab")
+    elseif button == 6 or button == 8 then
+        handleGlobalInput("next_tab")
+    elseif button == 9 then
+        handleGlobalInput("currency")
+    elseif button == 10 then
+        handleGlobalInput("language")
+    else
+        local map = {
+            [1] = "a", [2] = "b", [3] = "x", [4] = "y",
+            [11] = "left", [12] = "right", [13] = "up", [14] = "down"
+        }
+        if map[button] then love.keypressed(map[button]) end
+    end
+end
+
+function love.joystickhat(joystick, hat, direction)
+    if joystick:isGamepad() then return end
+    if direction == "u" or direction == "ru" or direction == "lu" then
+        love.keypressed("up")
+    elseif direction == "d" or direction == "rd" or direction == "ld" then
+        love.keypressed("down")
+    elseif direction == "l" then
+        love.keypressed("left")
+    elseif direction == "r" then
+        love.keypressed("right")
+    end
+end
+
+function love.joystickadded(joystick)
+    audio.play("click")
+end
+
+function love.joystickremoved(joystick)
+    audio.play("click")
 end
 
 -- Обработка кликов мыши / тачскрина
