@@ -53,8 +53,15 @@ function bj.calculateScore(hand)
 end
 
 function bj.update(dt)
-    if bj.dealAnim < 1 then
-        bj.dealAnim = math.min(1, bj.dealAnim + dt * 4.0)
+    for _, c in ipairs(bj.playerHand) do
+        if c.anim and c.anim < 1 then
+            c.anim = math.min(1, c.anim + dt * 2.2)
+        end
+    end
+    for _, c in ipairs(bj.dealerHand) do
+        if c.anim and c.anim < 1 then
+            c.anim = math.min(1, c.anim + dt * 2.2)
+        end
     end
 end
 
@@ -68,9 +75,14 @@ function bj.deal()
 
     audio.play("click")
     bj.gameOver = false
-    bj.dealAnim = 0
-    bj.playerHand = { table.remove(bj.deck), table.remove(bj.deck) }
-    bj.dealerHand = { table.remove(bj.deck), table.remove(bj.deck) }
+
+    local p1 = table.remove(bj.deck); p1.anim = 0.0
+    local d1 = table.remove(bj.deck); d1.anim = -0.15
+    local p2 = table.remove(bj.deck); p2.anim = -0.30
+    local d2 = table.remove(bj.deck); d2.anim = -0.45
+
+    bj.playerHand = { p1, p2 }
+    bj.dealerHand = { d1, d2 }
 
     bj.statusText = "[A] HIT  •  [B] STAND  •  [Y] DOUBLE"
 
@@ -82,7 +94,9 @@ end
 function bj.hit()
     if bj.gameOver then return end
     audio.play("click")
-    table.insert(bj.playerHand, table.remove(bj.deck))
+    local c = table.remove(bj.deck)
+    c.anim = 0.0
+    table.insert(bj.playerHand, c)
 
     local score = bj.calculateScore(bj.playerHand)
     if score > 21 then
@@ -125,8 +139,12 @@ function bj.stand()
     end
 
     -- Дилер добирает строго до 17 (Dealer stands on all 17s)
+    local dIdx = 0
     while bj.calculateScore(bj.dealerHand) < 17 do
-        table.insert(bj.dealerHand, table.remove(bj.deck))
+        dIdx = dIdx + 1
+        local extraCard = table.remove(bj.deck)
+        extraCard.anim = -(dIdx * 0.18)
+        table.insert(bj.dealerHand, extraCard)
     end
 
     local p = bj.calculateScore(bj.playerHand)
@@ -213,12 +231,14 @@ function bj.draw()
         drawEmptyCardSlot(170, 165, "CARD 2")
     else
         for i, c in ipairs(bj.dealerHand) do
-            local yOff = 0
-            if bj.dealAnim < 1 then
-                local prog = math.max(0, math.min(1, (bj.dealAnim - (i - 1) * 0.15) / 0.35))
-                yOff = (1 - math.sin(prog * math.pi * 0.5)) * -35
+            local anim = c.anim or 1
+            if anim >= 0 then
+                local p = math.min(1, anim)
+                local ease = 1 - math.pow(1 - p, 3)
+                local yOff = (1 - ease) * -65
+                local xOff = (1 - ease) * 35
+                drawCard(c, 60 + (i - 1) * 110 + xOff, 165 + yOff, (i == 2 and not bj.gameOver))
             end
-            drawCard(c, 60 + (i - 1) * 110, 165 + yOff, (i == 2 and not bj.gameOver))
         end
     end
 
@@ -238,12 +258,14 @@ function bj.draw()
         drawEmptyCardSlot(170, 405, "CARD 2")
     else
         for i, c in ipairs(bj.playerHand) do
-            local yOff = 0
-            if bj.dealAnim < 1 then
-                local prog = math.max(0, math.min(1, (bj.dealAnim - (i - 1) * 0.15) / 0.35))
-                yOff = (1 - math.sin(prog * math.pi * 0.5)) * -35
+            local anim = c.anim or 1
+            if anim >= 0 then
+                local p = math.min(1, anim)
+                local ease = 1 - math.pow(1 - p, 3)
+                local yOff = (1 - ease) * -65
+                local xOff = (1 - ease) * 35
+                drawCard(c, 60 + (i - 1) * 110 + xOff, 405 + yOff, false)
             end
-            drawCard(c, 60 + (i - 1) * 110, 405 + yOff, false)
         end
     end
 
@@ -253,21 +275,18 @@ function bj.draw()
 
     -- Панель ставки (D-Pad)
     love.graphics.setColor(0.12, 0.05, 0.02)
-    love.graphics.rectangle("fill", 52, 566, 290, 48, 4)
+    love.graphics.rectangle("fill", 55, 566, 280, 48, 4)
     love.graphics.setColor(0.65, 0.45, 0.15)
-    love.graphics.rectangle("line", 52, 566, 290, 48, 4)
+    love.graphics.rectangle("line", 55, 566, 280, 48, 4)
 
     love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print("BET [▲/▼]:", 62, 572)
+    love.graphics.print("BET [▲/▼ ±100, ◄/► ±1K]", 65, 572)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(economy.format(bj.bet), 150, 572)
+    love.graphics.print(economy.format(bj.bet), 65, 590)
 
-    love.graphics.setColor(0.75, 0.7, 0.55)
-    if bj.gameOver then
-        love.graphics.print("[▲/▼ ±100]  [◄/► ±1K]", 62, 592)
-    else
+    if not bj.gameOver then
         love.graphics.setColor(0.6, 0.5, 0.4)
-        love.graphics.print("LOCKED FOR ROUND", 62, 592)
+        love.graphics.print("(LOCKED)", 180, 590)
     end
 
     local function drawGameBtn(bx, by, bw, bh, bCol, keyCol, keyChar, label)
@@ -297,10 +316,10 @@ function bj.draw()
         love.graphics.print(label, bx + 36, cy - 7)
     end
 
-    drawGameBtn(360, 570, 135, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", "HIT")
-    drawGameBtn(510, 570, 145, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "B", "STAND")
-    drawGameBtn(670, 570, 150, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "Y", "DOUBLE")
-    drawGameBtn(835, 570, 135, 40, {0.68, 0.32, 0.1}, {0.32, 0.62, 0.96}, "X", "DEAL")
+    drawGameBtn(365, 570, 135, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", "HIT")
+    drawGameBtn(515, 570, 140, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "B", "STAND")
+    drawGameBtn(670, 570, 145, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "Y", "DOUBLE")
+    drawGameBtn(830, 570, 135, 40, {0.68, 0.32, 0.1}, {0.32, 0.62, 0.96}, "X", "DEAL")
 end
 
 function bj.keypressed(key)

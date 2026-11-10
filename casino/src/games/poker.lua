@@ -83,8 +83,10 @@ function poker.evaluateHand()
 end
 
 function poker.update(dt)
-    if poker.dealAnim < 1 then
-        poker.dealAnim = math.min(1, poker.dealAnim + dt * 4.0)
+    for _, c in ipairs(poker.hand) do
+        if c.anim and c.anim < 1 then
+            c.anim = math.min(1, c.anim + dt * 2.2)
+        end
     end
 end
 
@@ -97,17 +99,22 @@ function poker.drawOrDeal()
 
         audio.play("click")
         poker.initDeck()
-        poker.dealAnim = 0
-        poker.hand = { table.remove(poker.deck), table.remove(poker.deck), table.remove(poker.deck), table.remove(poker.deck), table.remove(poker.deck) }
+        poker.hand = {}
+        for i = 1, 5 do
+            local c = table.remove(poker.deck)
+            c.anim = -(i - 1) * 0.12
+            table.insert(poker.hand, c)
+        end
         poker.holds = { false, false, false, false, false }
         poker.phase = "draw"
         poker.comboText = "SELECT CARDS TO HOLD • [X] DRAW"
     else
         audio.play("click")
-        poker.dealAnim = 0.3
         for i = 1, 5 do
             if not poker.holds[i] then
-                poker.hand[i] = table.remove(poker.deck)
+                local c = table.remove(poker.deck)
+                c.anim = 0.0
+                poker.hand[i] = c
             end
         end
 
@@ -179,12 +186,13 @@ function poker.draw()
     else
         for i, c in ipairs(poker.hand) do
             local x = startX + (i - 1) * 150
-            local yOff = 0
-            if poker.dealAnim < 1 then
-                local prog = math.max(0, math.min(1, (poker.dealAnim - (i - 1) * 0.1) / 0.3))
-                yOff = (1 - math.sin(prog * math.pi * 0.5)) * -35
+            local anim = c.anim or 1
+            if anim >= 0 then
+                local p = math.min(1, anim)
+                local ease = 1 - math.pow(1 - p, 3)
+                local yOff = (1 - ease) * -65
+                drawCard(c, x, startY + yOff, poker.holds[i], i == poker.focusCard)
             end
-            drawCard(c, x, startY + yOff, poker.holds[i], i == poker.focusCard)
         end
     end
 
@@ -197,19 +205,22 @@ function poker.draw()
     -- Нижняя панель
     love.graphics.setColor(0.22, 0.1, 0.04)
     love.graphics.rectangle("fill", 40, 560, 944, 60, 4)
+
     -- Панель ставки (D-Pad)
     love.graphics.setColor(0.12, 0.05, 0.02)
-    love.graphics.rectangle("fill", 52, 566, 290, 48, 4)
+    love.graphics.rectangle("fill", 55, 566, 280, 48, 4)
     love.graphics.setColor(0.65, 0.45, 0.15)
-    love.graphics.rectangle("line", 52, 566, 290, 48, 4)
+    love.graphics.rectangle("line", 55, 566, 280, 48, 4)
 
     love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print("BET [▲/▼]:", 62, 572)
+    love.graphics.print("BET [▲/▼ ±100, ◄/► ±1K]", 65, 572)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(economy.format(poker.bet), 150, 572)
+    love.graphics.print(economy.format(poker.bet), 65, 590)
 
-    love.graphics.setColor(0.75, 0.7, 0.55)
-    love.graphics.print("[▲/▼ BET]  [◄/► SELECT]", 62, 592)
+    if poker.phase == "draw" then
+        love.graphics.setColor(0.6, 0.5, 0.4)
+        love.graphics.print("(LOCKED)", 180, 590)
+    end
 
     local function drawGameBtn(bx, by, bw, bh, bCol, keyCol, keyChar, label)
         love.graphics.setColor(0.08, 0.03, 0.01)
@@ -239,28 +250,38 @@ function poker.draw()
 end
 
 function poker.keypressed(key)
-    if key == "left" then
-        poker.focusCard = (poker.focusCard == 1) and 5 or (poker.focusCard - 1)
-        audio.play("click")
-    elseif key == "right" then
-        poker.focusCard = (poker.focusCard == 5) and 1 or (poker.focusCard + 1)
-        audio.play("click")
-    elseif key == "a" then
-        if poker.phase == "draw" then
+    if poker.phase == "deal" then
+        if key == "up" then
+            poker.bet = poker.bet + 100
+            audio.play("click")
+        elseif key == "down" then
+            poker.bet = math.max(100, poker.bet - 100)
+            audio.play("click")
+        elseif key == "right" then
+            poker.bet = poker.bet + 1000
+            audio.play("click")
+        elseif key == "left" then
+            poker.bet = math.max(100, poker.bet - 1000)
+            audio.play("click")
+        end
+    else
+        if key == "left" then
+            poker.focusCard = (poker.focusCard == 1) and 5 or (poker.focusCard - 1)
+            audio.play("click")
+        elseif key == "right" then
+            poker.focusCard = (poker.focusCard == 5) and 1 or (poker.focusCard + 1)
+            audio.play("click")
+        elseif key == "a" then
             poker.holds[poker.focusCard] = not poker.holds[poker.focusCard]
             audio.play("click")
         end
-    elseif key == "1" then poker.holds[1] = not poker.holds[1]
+    end
+
+    if key == "1" then poker.holds[1] = not poker.holds[1]
     elseif key == "2" then poker.holds[2] = not poker.holds[2]
     elseif key == "3" then poker.holds[3] = not poker.holds[3]
     elseif key == "4" then poker.holds[4] = not poker.holds[4]
     elseif key == "5" then poker.holds[5] = not poker.holds[5]
-    elseif key == "up" then
-        poker.bet = poker.bet + 100
-        audio.play("click")
-    elseif key == "down" then
-        poker.bet = math.max(100, poker.bet - 100)
-        audio.play("click")
     elseif key == "x" or key == "space" or key == "return" then
         poker.drawOrDeal()
     end

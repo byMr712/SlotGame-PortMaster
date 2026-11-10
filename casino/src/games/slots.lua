@@ -60,9 +60,11 @@ function slots.spin()
         slots.reels[r].targetStop = stop
         slots.chosen[r] = slots.symbols[stop]
         slots.reels[r].stopped = false
-        slots.reels[r].stopping = false
-        slots.reels[r].speed = 1500
-        slots.reels[r].delay = 0.8 + (r - 1) * 0.7
+        slots.reels[r].settling = false
+        slots.reels[r].settleTimer = 0
+        slots.reels[r].speed = 350
+        slots.reels[r].targetSpeed = 1550
+        slots.reels[r].delay = 0.85 + (r - 1) * 0.75
     end
 
     -- Саспенс: если первые 2 совпали по топ-символам
@@ -84,25 +86,40 @@ function slots.update(dt)
         local reel = slots.reels[r]
         if not reel.stopped then
             allStopped = false
-            reel.delay = reel.delay - dt
 
-            if reel.delay <= 0 then
-                -- Торможение и точная посадка на целевой стоп
-                local targetOffset = (reel.targetStop - 1) * CELL_H
-                local currentNorm = reel.offset % STRIP_HEIGHT
-                local diff = (targetOffset - currentNorm) % STRIP_HEIGHT
-
-                if diff > 0 and diff < 30 then
-                    reel.offset = reel.offset + diff
+            if reel.settling then
+                reel.settleTimer = reel.settleTimer + dt
+                local t = reel.settleTimer
+                -- Плавный пружинящий отскок при посадке
+                local bounce = 16 * math.exp(-10 * t) * math.sin(20 * t)
+                reel.offset = reel.baseOffset + bounce
+                if t >= 0.35 then
+                    reel.offset = reel.baseOffset
+                    reel.settling = false
                     reel.stopped = true
-                    reel.speed = 0
-                    audio.play("tick")
-                else
-                    reel.speed = math.max(300, reel.speed - dt * 2500)
-                    reel.offset = reel.offset + reel.speed * dt
                 end
             else
-                reel.offset = reel.offset + reel.speed * dt
+                reel.delay = reel.delay - dt
+                -- Плавный разгон барабанов в начале спина
+                reel.speed = reel.speed + (reel.targetSpeed - reel.speed) * math.min(1, dt * 7)
+
+                if reel.delay <= 0 then
+                    local targetOffset = (reel.targetStop - 1) * CELL_H
+                    local currentNorm = reel.offset % STRIP_HEIGHT
+                    local diff = (targetOffset - currentNorm) % STRIP_HEIGHT
+
+                    if diff > 0 and diff < 36 then
+                        reel.baseOffset = reel.offset + diff
+                        reel.settling = true
+                        reel.settleTimer = 0
+                        audio.play("tick")
+                    else
+                        reel.speed = math.max(350, reel.speed - dt * 2000)
+                        reel.offset = reel.offset + reel.speed * dt
+                    end
+                else
+                    reel.offset = reel.offset + reel.speed * dt
+                end
             end
         end
     end
@@ -281,95 +298,59 @@ function slots.draw()
     love.graphics.setColor(0.78, 0.52, 0.12)
     love.graphics.rectangle("line", 40, 524, 944, 88, 6)
 
-    -- Кнопки ставок с тактильными D-Pad/кнопочными колпачками
-    local betBtns = {
-        { dir = "▼", label = "-100", x = 52, w = 64, isKey = false },
-        { dir = "▲", label = "+100", x = 120, w = 64, isKey = false },
-        { dir = "►", label = "+1K",  x = 188, w = 64, isKey = false },
-        { dir = "Y", label = "MAX",  x = 256, w = 68, isKey = true },
-    }
-    for _, btn in ipairs(betBtns) do
-        -- Тень
-        love.graphics.setColor(0.08, 0.03, 0.01)
-        love.graphics.rectangle("fill", btn.x, 544, btn.w, 48, 4)
-        -- Корпус кнопки
-        love.graphics.setColor(0.65, 0.30, 0.10)
-        love.graphics.rectangle("fill", btn.x + 2, 546, btn.w - 4, 44, 3)
-        -- Фаска
-        love.graphics.setColor(0.85, 0.45, 0.18)
-        love.graphics.rectangle("line", btn.x + 2, 546, btn.w - 4, 44, 3)
-
-        -- Колпачок D-pad или круглая кнопка Y
-        if btn.isKey then
-            love.graphics.setColor(0.95, 0.78, 0.20)
-            love.graphics.circle("fill", btn.x + 16, 568, 9)
-            love.graphics.setColor(0.15, 0.05, 0.02)
-            love.graphics.print(btn.dir, btn.x + 12, 561)
-        else
-            love.graphics.setColor(0.18, 0.08, 0.04)
-            love.graphics.rectangle("fill", btn.x + 6, 558, 18, 20, 2)
-            love.graphics.setColor(0.78, 0.52, 0.12)
-            love.graphics.rectangle("line", btn.x + 6, 558, 18, 20, 2)
-            love.graphics.setColor(1, 0.88, 0.4)
-            love.graphics.print(btn.dir, btn.x + 10, 561)
-        end
-
-        love.graphics.setColor(1, 1, 1)
-        love.graphics.print(btn.label, btn.x + 28, 561)
-    end
-
-    -- Информационные плашки: СТАВКА и ВЫИГРЫШ
+    -- Информационные плашки: СТАВКА (управление D-Pad) и ВЫИГРЫШ
     love.graphics.setColor(0.12, 0.05, 0.02)
-    love.graphics.rectangle("fill", 335, 544, 180, 48, 4)
+    love.graphics.rectangle("fill", 60, 544, 270, 48, 4)
     love.graphics.setColor(0.65, 0.45, 0.15)
-    love.graphics.rectangle("line", 335, 544, 180, 48, 4)
+    love.graphics.rectangle("line", 60, 544, 270, 48, 4)
     love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print("BET", 345, 550)
+    love.graphics.print("BET [▲/▼ ±100, ◄/► ±1K]", 70, 550)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(economy.format(slots.bet), 345, 568)
+    love.graphics.print(economy.format(slots.bet), 70, 568)
 
     love.graphics.setColor(0.12, 0.05, 0.02)
-    love.graphics.rectangle("fill", 530, 544, 180, 48, 4)
+    love.graphics.rectangle("fill", 360, 544, 220, 48, 4)
     love.graphics.setColor(0.65, 0.45, 0.15)
-    love.graphics.rectangle("line", 530, 544, 180, 48, 4)
+    love.graphics.rectangle("line", 360, 544, 220, 48, 4)
     love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print("WIN", 540, 550)
+    love.graphics.print("LAST WIN", 370, 550)
     if isWin then
         love.graphics.setColor(0.2, 0.95, 0.4)
     else
         love.graphics.setColor(1, 1, 1)
     end
-    love.graphics.print(economy.format(slots.lastWin), 540, 568)
+    love.graphics.print(economy.format(slots.lastWin), 370, 568)
 
     -- Кнопка СПИН
     local spinAlpha = slots.isSpinning and 0.5 or 1.0
+    local bx = 710
     -- Темный внешний контур и тень
     love.graphics.setColor(0.08, 0.03, 0.01, spinAlpha)
-    love.graphics.rectangle("fill", 730, 540, 234, 56, 6)
+    love.graphics.rectangle("fill", bx, 540, 254, 56, 6)
 
     -- Рубиновый корпус кнопки
     love.graphics.setColor(0.78, 0.16, 0.10, spinAlpha)
-    love.graphics.rectangle("fill", 733, 543, 228, 50, 4)
+    love.graphics.rectangle("fill", bx + 3, 543, 248, 50, 4)
 
     -- Внутренняя золотисто-светлая фаска блика сверху
     love.graphics.setColor(0.96, 0.45, 0.35, spinAlpha)
     love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", 734, 544, 226, 48, 4)
+    love.graphics.rectangle("line", bx + 4, 544, 246, 48, 4)
     love.graphics.setLineWidth(1)
 
     -- Золотая круглая кнопка геймпада (X)
     love.graphics.setColor(0.95, 0.78, 0.25, spinAlpha)
-    love.graphics.circle("fill", 800, 568, 14)
+    love.graphics.circle("fill", bx + 40, 568, 14)
     love.graphics.setColor(0.15, 0.05, 0.02, spinAlpha)
     love.graphics.setLineWidth(2)
-    love.graphics.circle("line", 800, 568, 14)
+    love.graphics.circle("line", bx + 40, 568, 14)
     love.graphics.setLineWidth(1)
     love.graphics.setColor(0.15, 0.05, 0.02, spinAlpha)
-    love.graphics.print("X", 796, 560)
+    love.graphics.print("X", bx + 36, 560)
 
     -- Текст SPIN!
     love.graphics.setColor(1, 0.98, 0.92, spinAlpha)
-    love.graphics.print("SPIN!", 830, 560)
+    love.graphics.print("SPIN!", bx + 70, 560)
 end
 
 function slots.keypressed(key)
