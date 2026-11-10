@@ -114,16 +114,20 @@ function love.draw()
     love.graphics.setColor(0.9, 0.8, 0.55)
     love.graphics.print("[L1/R1] ROOMS  •  [D-PAD] NAVIGATE  •  [A] ACTION  •  [X] SPIN/DEAL", 36, 725)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print("TRIMUI BRICK (1024x768) • 60 FPS", 730, 725)
+    love.graphics.print("TRIMUI BRICK EDITION", 800, 725)
 end
 
 local function handleGlobalInput(action)
     if action == "prev_tab" then
         activeTab = (activeTab == 1) and 4 or (activeTab - 1)
         audio.play("click")
+        if activeTab == 2 and #bj.playerHand == 0 then bj.deal() end
+        if activeTab == 4 and #poker.hand == 0 then poker.drawOrDeal() end
     elseif action == "next_tab" then
         activeTab = (activeTab == 4) and 1 or (activeTab + 1)
         audio.play("click")
+        if activeTab == 2 and #bj.playerHand == 0 then bj.deal() end
+        if activeTab == 4 and #poker.hand == 0 then poker.drawOrDeal() end
     elseif action == "currency" then
         economy.toggleCurrency()
         audio.play("click")
@@ -139,9 +143,9 @@ function love.keypressed(key)
     elseif key == "e" or key == "]" then
         handleGlobalInput("next_tab")
     elseif key == "1" then activeTab = 1; audio.play("click")
-    elseif key == "2" then activeTab = 2; audio.play("click")
+    elseif key == "2" then activeTab = 2; audio.play("click"); if #bj.playerHand == 0 then bj.deal() end
     elseif key == "3" then activeTab = 3; audio.play("click")
-    elseif key == "4" then activeTab = 4; audio.play("click")
+    elseif key == "4" then activeTab = 4; audio.play("click"); if #poker.hand == 0 then poker.drawOrDeal() end
     elseif key == "c" or key == "rshift" or key == "lshift" then
         handleGlobalInput("currency")
     elseif key == "m" or key == "tab" or key == "escape" then
