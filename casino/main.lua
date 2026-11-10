@@ -57,32 +57,34 @@ function love.draw()
     -- Вкладка залов в одну ячейку: меняется по L1 / R1, без цифр
     local roomNames = { "SLOTS", "BLACKJACK", "ROULETTE", "POKER" }
     love.graphics.setColor(0.18, 0.08, 0.03)
-    love.graphics.rectangle("fill", 30, 24, 340, 32, 4)
+    love.graphics.rectangle("fill", 30, 24, 360, 32, 4)
     love.graphics.setColor(0.55, 0.26, 0.08)
-    love.graphics.rectangle("line", 30, 24, 340, 32, 4)
+    love.graphics.rectangle("line", 30, 24, 360, 32, 4)
 
-    -- Кнопка [L1] ◄
+    -- Кнопка [L1]
     love.graphics.setColor(0.24, 0.1, 0.03)
-    love.graphics.rectangle("fill", 34, 27, 60, 26, 3)
+    love.graphics.rectangle("fill", 35, 27, 50, 26, 3)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print("[L1] ◄", 40, 33)
+    love.graphics.print("[L1]", 46, 33)
 
-    -- Название текущего зала в одной центральной ячейке
-    love.graphics.setColor(0.77, 0.39, 0.11)
-    love.graphics.rectangle("fill", 100, 27, 180, 26, 3)
-    love.graphics.setColor(0.78, 0.52, 0.12)
-    love.graphics.rectangle("line", 100, 27, 180, 26, 3)
+    -- Название текущего зала со стрелками ◄   НАЗВАНИЕ   ►
+    love.graphics.setColor(1, 0.88, 0.4)
+    love.graphics.print("◄", 96, 33)
+
     love.graphics.setColor(1, 1, 1)
     local curRoom = roomNames[activeTab]
     local font = love.graphics.getFont()
     local tw = font and font:getWidth(curRoom) or (#curRoom * 8)
-    love.graphics.print(curRoom, 100 + (180 - tw) / 2, 33)
+    love.graphics.print(curRoom, 210 - tw / 2, 33)
 
-    -- Кнопка ► [R1]
-    love.graphics.setColor(0.24, 0.1, 0.03)
-    love.graphics.rectangle("fill", 286, 27, 80, 26, 3)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print("► [R1]", 294, 33)
+    love.graphics.print("►", 314, 33)
+
+    -- Кнопка [R1]
+    love.graphics.setColor(0.24, 0.1, 0.03)
+    love.graphics.rectangle("fill", 335, 27, 50, 26, 3)
+    love.graphics.setColor(1, 0.88, 0.4)
+    love.graphics.print("[R1]", 346, 33)
 
     -- Баланс
     love.graphics.setColor(0.22, 0.1, 0.04)
