@@ -23,6 +23,19 @@ bj.gameOver = true
 bj.statusText = ""
 bj.dealAnim = 1
 
+local cardBackSymbols = { "stardrop", "prism", "ancient", "cherry", "parsnip" }
+bj.currentCardBack = "stardrop"
+
+local function pickNewCardBack()
+    local available = {}
+    for _, s in ipairs(cardBackSymbols) do
+        if s ~= bj.currentCardBack then
+            table.insert(available, s)
+        end
+    end
+    return available[math.random(#available)]
+end
+
 local suits = { "spade", "heart", "diamond", "club" }
 local values = {
     { name = "2", val = 2 }, { name = "3", val = 3 }, { name = "4", val = 4 },
@@ -85,6 +98,7 @@ function bj.deal()
 
     audio.play("click")
     bj.gameOver = false
+    bj.currentCardBack = pickNewCardBack()
 
     local p1 = table.remove(bj.deck); p1.anim = 0.0
     local d1 = table.remove(bj.deck); d1.anim = -0.15
@@ -93,6 +107,24 @@ function bj.deal()
 
     bj.playerHand = { p1, p2 }
     bj.dealerHand = { d1, d2 }
+
+    -- Бот заранее имеет все карты на столе (добирает сразу при сдаче, в закрытую)
+    local dIdx = 2
+    while bj.calculateScore(bj.dealerHand) < 17 do
+        dIdx = dIdx + 1
+        local extraCard = table.remove(bj.deck)
+        extraCard.anim = -(dIdx * 0.15)
+        table.insert(bj.dealerHand, extraCard)
+    end
+
+    -- Если у дилера выпало 21, то он с шансом 30% добавляет себе еще карту
+    if bj.calculateScore(bj.dealerHand) == 21 and math.random() < 0.30 then
+        dIdx = dIdx + 1
+        local extraCard = table.remove(bj.deck)
+        extraCard.anim = -(dIdx * 0.15)
+        table.insert(bj.dealerHand, extraCard)
+    end
+
     bj.statusText = ""
 end
 
@@ -119,23 +151,6 @@ end
 function bj.stand()
     if bj.gameOver then return end
     bj.gameOver = true
-
-    -- Дилер добирает строго до 17 (Dealer stands on 17+)
-    local dIdx = 0
-    while bj.calculateScore(bj.dealerHand) < 17 do
-        dIdx = dIdx + 1
-        local extraCard = table.remove(bj.deck)
-        extraCard.anim = -(dIdx * 0.18)
-        table.insert(bj.dealerHand, extraCard)
-    end
-
-    -- Если у дилера выпало 21, то он с шансом 30% добавляет себе еще карту
-    if bj.calculateScore(bj.dealerHand) == 21 and math.random() < 0.30 then
-        dIdx = dIdx + 1
-        local extraCard = table.remove(bj.deck)
-        extraCard.anim = -(dIdx * 0.18)
-        table.insert(bj.dealerHand, extraCard)
-    end
 
     local p = bj.calculateScore(bj.playerHand)
     local d = bj.calculateScore(bj.dealerHand)
@@ -206,7 +221,7 @@ local function drawCard(c, x, y, hidden)
     if hidden then
         love.graphics.setColor(0.35, 0.15, 0.05)
         love.graphics.rectangle("fill", x + 3, y + 3, cw - 6, ch - 6, 4)
-        sprites.draw("stardrop", x + cw / 2, y + ch / 2, 64)
+        sprites.draw(bj.currentCardBack or "stardrop", x + cw / 2, y + ch / 2, 64)
         return
     end
 
@@ -270,7 +285,7 @@ function bj.draw()
                 local ease = 1 - math.pow(1 - p, 3)
                 local yOff = (1 - ease) * -65
                 local xOff = (1 - ease) * 35
-                drawCard(c, dStartX + (i - 1) * (cw + gap) + xOff, dealerCardsY + yOff, (i == 2 and not bj.gameOver))
+                drawCard(c, dStartX + (i - 1) * (cw + gap) + xOff, dealerCardsY + yOff, (i > 1 and not bj.gameOver))
             end
         end
     end
