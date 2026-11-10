@@ -448,13 +448,20 @@ function slots.draw()
     love.graphics.rectangle("line", 60, 544, 270, 48, 4)
 
     -- Желтый значок [Y]
+    local font = love.graphics.getFont()
+    local cx, cy = 80, 568
     love.graphics.setColor(0.96, 0.78, 0.2)
-    love.graphics.circle("fill", 80, 568, 12)
+    love.graphics.circle("fill", cx, cy, 12)
     love.graphics.setColor(0.08, 0.03, 0.01)
     love.graphics.setLineWidth(1.5)
-    love.graphics.circle("line", 80, 568, 12)
+    love.graphics.circle("line", cx, cy, 12)
     love.graphics.setLineWidth(1)
-    love.graphics.print("Y", 76, 561)
+    local kw = font and font:getWidth("Y") or 8
+    local kh = font and font:getHeight() or 14
+    local tx = math.floor(cx - kw / 2)
+    local ty = math.floor(cy - kh / 2)
+    love.graphics.print("Y", tx, ty)
+    love.graphics.print("Y", tx + 1, ty)
 
     love.graphics.setColor(0.9, 0.8, 0.55)
     love.graphics.print(i18n.t("bet") .. ":", 100, 550)
