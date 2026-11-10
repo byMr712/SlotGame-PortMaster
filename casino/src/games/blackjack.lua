@@ -11,7 +11,7 @@ bj.deck = {}
 bj.playerHand = {}
 bj.dealerHand = {}
 bj.gameOver = true
-bj.statusText = "PRESS [►] TO DEAL  •  [Y] SET BET"
+bj.statusText = "PLACE YOUR BET"
 bj.dealAnim = 1
 
 local suits = { "spade", "heart", "diamond", "club" }
@@ -85,7 +85,7 @@ function bj.deal()
     bj.playerHand = { p1, p2 }
     bj.dealerHand = { d1, d2 }
 
-    bj.statusText = "[▲] HIT  •  [▼] STAND  •  [◄] DOUBLE"
+    bj.statusText = "YOUR TURN"
 
     if bj.calculateScore(bj.playerHand) == 21 then
         bj.stand()
@@ -365,11 +365,9 @@ function bj.keypressed(key)
     elseif key == "right" then
         if bj.gameOver then bj.deal() end
     elseif key == "y" then
-        if bj.gameOver then
-            betModal.open(bj.bet, 100, economy.getBalance(), function(newBet)
-                bj.bet = newBet
-            end)
-        end
+        betModal.open(bj.bet, 100, economy.getBalance(), function(newBet)
+            bj.bet = newBet
+        end)
     elseif key == "a" then
         bj.hit()
     elseif key == "b" then
@@ -380,13 +378,11 @@ function bj.keypressed(key)
 end
 
 function bj.mousepressed(x, y)
-    -- Окно ставки [Y] (55, 566, 260, 48)
-    if x >= 55 and x <= 315 and y >= 566 and y <= 614 then
-        if bj.gameOver then
-            betModal.open(bj.bet, 100, economy.getBalance(), function(newBet)
-                bj.bet = newBet
-            end)
-        end
+    -- Окно ставки [Y] (щедрая зона клика)
+    if x >= 40 and x <= 335 and y >= 550 and y <= 620 then
+        betModal.open(bj.bet, 100, economy.getBalance(), function(newBet)
+            bj.bet = newBet
+        end)
         return true
     end
 

@@ -18,7 +18,7 @@ roulette.wheelAngle = 0
 roulette.ballAngle = 0
 roulette.ballRadius = 110
 roulette.history = { 32, 15 }
-roulette.statusText = "[D-PAD] MOVE • [A] BET • [B] CLEAR • [X] SPIN"
+roulette.statusText = "PLACE YOUR BETS"
 roulette.zoom = 0
 roulette.targetZoom = 0
 roulette.holdTimer = 0
@@ -209,7 +209,7 @@ function roulette.update(dt)
             roulette.targetZoom = 0
             roulette.isSpinning = false
             roulette.ballActive = false
-            roulette.statusText = "D-PAD SELECT • [A] BET • [X] SPIN"
+            roulette.statusText = "PLACE YOUR BETS"
         end
     end
 
@@ -659,8 +659,8 @@ end
 function roulette.mousepressed(x, y)
     if roulette.isSpinning then return false end
 
-    -- Плашка фишки / ставки [Y]
-    if x >= 50 and x <= 410 and y >= 566 and y <= 614 then
+    -- Плашка фишки / ставки [Y] (щедрая зона клика)
+    if x >= 40 and x <= 420 and y >= 550 and y <= 620 then
         betModal.open(roulette.selectedChip, 100, economy.getBalance(), function(newChip)
             roulette.selectedChip = newChip
         end)

@@ -108,7 +108,7 @@ function poker.drawOrDeal()
         end
         poker.holds = { false, false, false, false, false }
         poker.phase = "draw"
-        poker.comboText = "SELECT CARDS TO HOLD • [X] DRAW"
+        poker.comboText = "SELECT CARDS TO HOLD"
     else
         audio.play("click")
         for i = 1, 5 do
@@ -126,7 +126,7 @@ function poker.drawOrDeal()
             poker.comboText = string.format("★ %s! +%s ★", name, economy.format(win))
             audio.play("win")
         else
-            poker.comboText = "NO COMBINATION. [X] DEAL"
+            poker.comboText = "NO COMBINATION"
             audio.play("fail")
         end
 
@@ -260,13 +260,11 @@ function poker.draw()
 end
 
 function poker.keypressed(key)
-    if poker.phase == "deal" then
-        if key == "y" then
-            betModal.open(poker.bet, 100, economy.getBalance(), function(newBet)
-                poker.bet = newBet
-            end)
-        end
-    else
+    if key == "y" then
+        betModal.open(poker.bet, 100, economy.getBalance(), function(newBet)
+            poker.bet = newBet
+        end)
+    elseif poker.phase == "draw" then
         if key == "left" then
             poker.focusCard = (poker.focusCard == 1) and 5 or (poker.focusCard - 1)
             audio.play("click")
@@ -290,13 +288,11 @@ function poker.keypressed(key)
 end
 
 function poker.mousepressed(x, y)
-    -- Окно ставки [Y] (55, 566, 260, 48)
-    if x >= 55 and x <= 315 and y >= 566 and y <= 614 then
-        if poker.phase == "deal" then
-            betModal.open(poker.bet, 100, economy.getBalance(), function(newBet)
-                poker.bet = newBet
-            end)
-        end
+    -- Окно ставки [Y] (щедрая зона клика)
+    if x >= 40 and x <= 335 and y >= 550 and y <= 620 then
+        betModal.open(poker.bet, 100, economy.getBalance(), function(newBet)
+            poker.bet = newBet
+        end)
         return true
     end
 
