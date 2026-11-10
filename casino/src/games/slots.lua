@@ -5,6 +5,7 @@ local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
 local sprites = require("src.core.sprites")
 local betModal = require("src.core.bet_modal")
+local bankruptModal = require("src.core.bankrupt_modal")
 
 slots.bet = 500
 slots.lastWin = 0
@@ -166,6 +167,13 @@ function slots.evaluateWin()
         slots.lastWin = 0
         slots.winLineTimer = 0
         audio.play("fail")
+    end
+
+    -- Проверка банкротства или снижение ставки до остатка баланса
+    if bankruptModal.check() then
+        -- открыто окно банкротства
+    elseif slots.bet > economy.getBalance() then
+        slots.bet = math.max(1, economy.getBalance())
     end
 end
 

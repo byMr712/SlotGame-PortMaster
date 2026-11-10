@@ -9,6 +9,7 @@ local audio = require("src.core.audio")
 local sprites = require("src.core.sprites")
 local betModal = require("src.core.bet_modal")
 local langModal = require("src.core.lang_modal")
+local bankruptModal = require("src.core.bankrupt_modal")
 
 local activeTab = 1 -- 1: Slots (Стартуем всегда со слотов!), 2: BJ, 3: Roulette, 4: Poker
 
@@ -19,6 +20,13 @@ function love.load()
     bj.createDeck()
     poker.initDeck()
     langModal.init()
+
+    bankruptModal.setResetCallback(function()
+        if slots.bet > 10000 then slots.bet = 10000 end
+        if bj.bet > 10000 then bj.bet = 10000 end
+        if roulette.chipBet > 10000 then roulette.chipBet = 10000 end
+        if poker.bet > 10000 then poker.bet = 10000 end
+    end)
 end
 
 function love.update(dt)
@@ -114,9 +122,10 @@ function love.draw()
         poker.draw()
     end
 
-    -- 4. Модальные окна (настройка ставки и выбор языка)
+    -- 4. Модальные окна (настройка ставки, выбор языка и банкротство)
     betModal.draw()
     langModal.draw()
+    bankruptModal.draw()
 end
 
 local function handleGlobalInput(action)
@@ -140,6 +149,12 @@ local function handleGlobalInput(action)
 end
 
 function love.keypressed(key)
+    -- Если открыто окно банкротства, весь ввод идет в него
+    if bankruptModal.active then
+        bankruptModal.keypressed(key)
+        return
+    end
+
     -- Если открыто окно выбора языка, ввод идет в него
     if langModal.active then
         langModal.keypressed(key)
@@ -205,6 +220,11 @@ function love.mousepressed(x, y, button)
     if button ~= 1 then return end
 
     -- 1. Модальные окна имеют абсолютный приоритет
+    if bankruptModal.active then
+        bankruptModal.mousepressed(x, y)
+        return
+    end
+
     if langModal.active then
         langModal.mousepressed(x, y)
         return

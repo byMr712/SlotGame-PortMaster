@@ -5,6 +5,15 @@ local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
 local sprites = require("src.core.sprites")
 local betModal = require("src.core.bet_modal")
+local bankruptModal = require("src.core.bankrupt_modal")
+
+local cardFont = nil
+local function getCardFont()
+    if not cardFont and love.graphics and love.graphics.newFont then
+        pcall(function() cardFont = love.graphics.newFont(24) end)
+    end
+    return cardFont
+end
 
 bj.bet = 1000
 bj.deck = {}
@@ -85,10 +94,6 @@ function bj.deal()
     bj.playerHand = { p1, p2 }
     bj.dealerHand = { d1, d2 }
     bj.statusText = ""
-
-    if bj.calculateScore(bj.playerHand) == 21 then
-        bj.stand()
-    end
 end
 
 function bj.hit()
@@ -103,8 +108,11 @@ function bj.hit()
         bj.gameOver = true
         bj.statusText = i18n.t("bust")
         audio.play("fail")
-    elseif score == 21 then
-        bj.stand()
+        if bankruptModal.check() then
+            -- открыто окно банкротства
+        elseif bj.bet > economy.getBalance() then
+            bj.bet = math.max(1, economy.getBalance())
+        end
     end
 end
 
@@ -112,33 +120,7 @@ function bj.stand()
     if bj.gameOver then return end
     bj.gameOver = true
 
-    local pScore = bj.calculateScore(bj.playerHand)
-    local dScore = bj.calculateScore(bj.dealerHand)
-    local playerBJ = (pScore == 21 and #bj.playerHand == 2)
-    local dealerBJ = (dScore == 21 and #bj.dealerHand == 2)
-
-    -- Натуральный блэкджек (3:2)
-    if playerBJ then
-        if dealerBJ then
-            economy.add(bj.bet)
-            bj.statusText = i18n.t("push")
-            audio.play("click")
-        else
-            local win = bj.bet * 2.5
-            economy.add(win)
-            bj.statusText = string.format("★ BLACKJACK! +%s ★", economy.format(win))
-            audio.play("win")
-        end
-        return
-    end
-
-    if dealerBJ then
-        bj.statusText = "DEALER BLACKJACK"
-        audio.play("fail")
-        return
-    end
-
-    -- Дилер добирает строго до 17 (Dealer stands on all 17s)
+    -- Дилер добирает строго до 17 (Dealer stands on 17+)
     local dIdx = 0
     while bj.calculateScore(bj.dealerHand) < 17 do
         dIdx = dIdx + 1
@@ -147,10 +129,29 @@ function bj.stand()
         table.insert(bj.dealerHand, extraCard)
     end
 
+    -- Если у дилера выпало 21, то он с шансом 30% добавляет себе еще карту
+    if bj.calculateScore(bj.dealerHand) == 21 and math.random() < 0.30 then
+        dIdx = dIdx + 1
+        local extraCard = table.remove(bj.deck)
+        extraCard.anim = -(dIdx * 0.18)
+        table.insert(bj.dealerHand, extraCard)
+    end
+
     local p = bj.calculateScore(bj.playerHand)
     local d = bj.calculateScore(bj.dealerHand)
+    local playerBJ = (p == 21 and #bj.playerHand == 2)
+    local dealerBJ = (d == 21 and #bj.dealerHand == 2)
 
-    if d > 21 or p > d then
+    -- Натуральный блэкджек (3:2)
+    if playerBJ and not dealerBJ then
+        local win = bj.bet * 2.5
+        economy.add(win)
+        bj.statusText = string.format("★ BLACKJACK! +%s ★", economy.format(win))
+        audio.play("win")
+    elseif dealerBJ and not playerBJ then
+        bj.statusText = "DEALER BLACKJACK"
+        audio.play("fail")
+    elseif d > 21 or p > d then
         local win = bj.bet * 2
         economy.add(win)
         bj.statusText = string.format("%s +%s", i18n.t("player_wins"), economy.format(win))
@@ -162,6 +163,13 @@ function bj.stand()
     else
         bj.statusText = i18n.t("dealer_wins")
         audio.play("fail")
+    end
+
+    -- Проверка банкротства или снижение ставки до остатка баланса
+    if bankruptModal.check() then
+        -- открыто окно банкротства
+    elseif bj.bet > economy.getBalance() then
+        bj.bet = math.max(1, economy.getBalance())
     end
 end
 
@@ -176,28 +184,34 @@ end
 
 local function drawEmptyCardSlot(x, y, label)
     love.graphics.setColor(0.12, 0.05, 0.02, 0.4)
-    love.graphics.rectangle("fill", x, y, 92, 130, 6)
+    love.graphics.rectangle("fill", x, y, 152, 212, 6)
     love.graphics.setColor(0.55, 0.26, 0.08, 0.45)
     love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", x, y, 92, 130, 6)
+    love.graphics.rectangle("line", x, y, 152, 212, 6)
     love.graphics.setLineWidth(1)
     love.graphics.setColor(0.7, 0.5, 0.2, 0.35)
-    love.graphics.print(label, x + 24, y + 56)
+    local oldFont = love.graphics.getFont()
+    local cFont = getCardFont()
+    if cFont then love.graphics.setFont(cFont) end
+    local tw = love.graphics.getFont():getWidth(label)
+    love.graphics.print(label, x + (152 - tw) / 2, y + 90)
+    love.graphics.setFont(oldFont)
 end
 
 local function drawCard(c, x, y, hidden)
+    local cw, ch = 152, 212
     love.graphics.setColor(0.12, 0.05, 0.02)
-    love.graphics.rectangle("fill", x, y, 92, 130, 6)
+    love.graphics.rectangle("fill", x, y, cw, ch, 6)
     
     if hidden then
         love.graphics.setColor(0.35, 0.15, 0.05)
-        love.graphics.rectangle("fill", x + 3, y + 3, 86, 124, 4)
-        sprites.draw("stardrop", x + 46, y + 65, 36)
+        love.graphics.rectangle("fill", x + 3, y + 3, cw - 6, ch - 6, 4)
+        sprites.draw("stardrop", x + cw / 2, y + ch / 2, 64)
         return
     end
 
     love.graphics.setColor(0.98, 0.93, 0.82)
-    love.graphics.rectangle("fill", x + 3, y + 3, 86, 124, 4)
+    love.graphics.rectangle("fill", x + 3, y + 3, cw - 6, ch - 6, 4)
 
     local isRed = (c.suit == "heart" or c.suit == "diamond")
     if isRed then
@@ -206,9 +220,17 @@ local function drawCard(c, x, y, hidden)
         love.graphics.setColor(0.1, 0.05, 0.02)
     end
 
-    love.graphics.print(c.name, x + 8, y + 8)
-    love.graphics.print(c.name, x + 70, y + 104)
-    sprites.draw(c.suit, x + 46, y + 65, 28)
+    local oldFont = love.graphics.getFont()
+    local cFont = getCardFont()
+    if cFont then love.graphics.setFont(cFont) end
+
+    love.graphics.print(c.name, x + 10, y + 10)
+    local tw = love.graphics.getFont():getWidth(c.name)
+    love.graphics.print(c.name, x + cw - 12 - tw, y + ch - 34)
+
+    love.graphics.setFont(oldFont)
+
+    sprites.draw(c.suit, x + cw / 2, y + ch / 2, 54)
 end
 
 function bj.draw()
@@ -218,11 +240,11 @@ function bj.draw()
     if #bj.dealerHand > 0 then
         dScore = bj.gameOver and tostring(bj.calculateScore(bj.dealerHand)) or (bj.dealerHand[1] and tostring(bj.dealerHand[1].val) or "??")
     end
-    love.graphics.print(string.format("%s: %s", i18n.t("dealer_gus"), dScore), 60, 100)
+    love.graphics.print(string.format("%s: %s", i18n.t("dealer_gus"), dScore), 60, 80)
 
     if #bj.dealerHand == 0 then
-        drawEmptyCardSlot(60, 125, "CARD 1")
-        drawEmptyCardSlot(170, 125, "CARD 2")
+        drawEmptyCardSlot(60, 105, "CARD 1")
+        drawEmptyCardSlot(220, 105, "CARD 2")
     else
         for i, c in ipairs(bj.dealerHand) do
             local anim = c.anim or 1
@@ -231,7 +253,7 @@ function bj.draw()
                 local ease = 1 - math.pow(1 - p, 3)
                 local yOff = (1 - ease) * -65
                 local xOff = (1 - ease) * 35
-                drawCard(c, 60 + (i - 1) * 110 + xOff, 125 + yOff, (i == 2 and not bj.gameOver))
+                drawCard(c, 60 + (i - 1) * 160 + xOff, 105 + yOff, (i == 2 and not bj.gameOver))
             end
         end
     end
@@ -243,23 +265,23 @@ function bj.draw()
         local tw = font and font:getWidth(bj.statusText) or (#bj.statusText * 8)
         local pw = math.max(260, tw + 48)
         local px = 512 - pw / 2
-        love.graphics.rectangle("fill", px, 280, pw, 38, 6)
+        love.graphics.rectangle("fill", px, 320, pw, 38, 6)
         love.graphics.setColor(0.78, 0.52, 0.12)
         love.graphics.setLineWidth(2)
-        love.graphics.rectangle("line", px, 280, pw, 38, 6)
+        love.graphics.rectangle("line", px, 320, pw, 38, 6)
         love.graphics.setLineWidth(1)
         love.graphics.setColor(1, 0.88, 0.4)
-        love.graphics.print(bj.statusText, 512 - tw / 2, 292)
+        love.graphics.print(bj.statusText, 512 - tw / 2, 332)
     end
 
     -- Карты игрока
     love.graphics.setColor(1, 0.88, 0.4)
     local pScore = #bj.playerHand > 0 and tostring(bj.calculateScore(bj.playerHand)) or "--"
-    love.graphics.print(string.format("%s: %s", i18n.t("player"), pScore), 60, 360)
+    love.graphics.print(string.format("%s: %s", i18n.t("player"), pScore), 60, 325)
 
     if #bj.playerHand == 0 then
-        drawEmptyCardSlot(60, 385, "CARD 1")
-        drawEmptyCardSlot(170, 385, "CARD 2")
+        drawEmptyCardSlot(60, 345, "CARD 1")
+        drawEmptyCardSlot(220, 345, "CARD 2")
     else
         for i, c in ipairs(bj.playerHand) do
             local anim = c.anim or 1
@@ -268,7 +290,7 @@ function bj.draw()
                 local ease = 1 - math.pow(1 - p, 3)
                 local yOff = (1 - ease) * -65
                 local xOff = (1 - ease) * 35
-                drawCard(c, 60 + (i - 1) * 110 + xOff, 385 + yOff, false)
+                drawCard(c, 60 + (i - 1) * 160 + xOff, 345 + yOff, false)
             end
         end
     end

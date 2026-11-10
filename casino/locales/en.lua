@@ -35,5 +35,9 @@ return {
     controls_tabs = "[L1/R1] Room",
     controls_focus = "[D-Pad] Select",
     controls_action = "[A] Action",
-    controls_spin = "[X] Spin/Deal"
+    controls_spin = "[X] Spin/Deal",
+    bankrupt_title = "You lost!",
+    bankrupt_msg1 = "$10,000 has been credited to you",
+    bankrupt_msg2 = "Try your luck again",
+    understood = "Understood"
 }

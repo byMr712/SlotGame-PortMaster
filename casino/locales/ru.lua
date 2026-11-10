@@ -35,5 +35,9 @@ return {
     controls_tabs = "[L1/R1] Смена игры",
     controls_focus = "[D-Pad] Выбор",
     controls_action = "[A] Действие",
-    controls_spin = "[X] Спин/Раздача"
+    controls_spin = "[X] Спин/Раздача",
+    bankrupt_title = "Вы проиграли!",
+    bankrupt_msg1 = "Вам снова начислено $10.000",
+    bankrupt_msg2 = "Попытайте удачу вновь",
+    understood = "Понял"
 }

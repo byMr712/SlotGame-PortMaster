@@ -4,6 +4,7 @@ local economy = require("src.core.economy")
 local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
 local betModal = require("src.core.bet_modal")
+local bankruptModal = require("src.core.bankrupt_modal")
 
 roulette.wheel = { 0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26 }
 roulette.redNumbers = { 1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36 }
@@ -344,6 +345,13 @@ function roulette.finishSpin()
 
     roulette.bets = {}
     roulette.holdTimer = 2.6
+
+    -- Проверка банкротства или снижение ставки до остатка баланса
+    if bankruptModal.check() then
+        -- открыто окно банкротства
+    elseif roulette.chipBet and roulette.chipBet > economy.getBalance() then
+        roulette.chipBet = math.max(1, economy.getBalance())
+    end
 end
 
 local function drawGrid(alpha)

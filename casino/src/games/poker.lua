@@ -5,6 +5,15 @@ local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
 local sprites = require("src.core.sprites")
 local betModal = require("src.core.bet_modal")
+local bankruptModal = require("src.core.bankrupt_modal")
+
+local cardFont = nil
+local function getCardFont()
+    if not cardFont and love.graphics and love.graphics.newFont then
+        pcall(function() cardFont = love.graphics.newFont(24) end)
+    end
+    return cardFont
+end
 
 poker.bet = 500
 poker.deck = {}
@@ -131,34 +140,54 @@ function poker.drawOrDeal()
         end
 
         poker.phase = "deal"
+
+        -- Проверка банкротства или снижение ставки до остатка баланса
+        if bankruptModal.check() then
+            -- открыто окно банкротства
+        elseif poker.bet > economy.getBalance() then
+            poker.bet = math.max(1, economy.getBalance())
+        end
     end
 end
 
 local function drawCard(c, x, y, held, focused)
+    local cw, ch = 166, 236
     love.graphics.setColor(0.12, 0.05, 0.02)
-    love.graphics.rectangle("fill", x, y, 100, 140, 6)
+    love.graphics.rectangle("fill", x, y, cw, ch, 6)
     love.graphics.setColor(0.98, 0.93, 0.82)
-    love.graphics.rectangle("fill", x + 3, y + 3, 94, 134, 4)
+    love.graphics.rectangle("fill", x + 3, y + 3, cw - 6, ch - 6, 4)
 
     if focused then
         love.graphics.setColor(1, 0.88, 0.2)
         love.graphics.setLineWidth(4)
-        love.graphics.rectangle("line", x - 3, y - 3, 106, 146, 6)
+        love.graphics.rectangle("line", x - 3, y - 3, cw + 6, ch + 6, 6)
         love.graphics.setLineWidth(1)
     end
 
     local isRed = (c.suit == "heart" or c.suit == "diamond")
-    if isRed then love.graphics.setColor(0.7, 0.15, 0.1) else love.graphics.setColor(0.1, 0.1, 0.1) end
+    if isRed then love.graphics.setColor(0.75, 0.15, 0.1) else love.graphics.setColor(0.1, 0.05, 0.02) end
 
-    love.graphics.print(c.name, x + 8, y + 8)
-    love.graphics.print(c.name, x + 76, y + 114)
-    sprites.draw(c.suit, x + 50, y + 70, 28)
+    local oldFont = love.graphics.getFont()
+    local cFont = getCardFont()
+    if cFont then love.graphics.setFont(cFont) end
+
+    love.graphics.print(c.name, x + 10, y + 10)
+    local tw = love.graphics.getFont():getWidth(c.name)
+    love.graphics.print(c.name, x + cw - 12 - tw, y + ch - 34)
+
+    love.graphics.setFont(oldFont)
+
+    sprites.draw(c.suit, x + cw / 2, y + ch / 2, 56)
 
     if held then
         love.graphics.setColor(0.7, 0.15, 0.1)
-        love.graphics.rectangle("fill", x + 16, y - 24, 68, 20, 3)
+        love.graphics.rectangle("fill", x + (cw - 90) / 2, y - 28, 90, 24, 4)
+        love.graphics.setColor(1, 0.88, 0.4)
+        love.graphics.setLineWidth(1.5)
+        love.graphics.rectangle("line", x + (cw - 90) / 2, y - 28, 90, 24, 4)
+        love.graphics.setLineWidth(1)
         love.graphics.setColor(1, 1, 1)
-        love.graphics.print("HOLD", x + 24, y - 20)
+        love.graphics.print("HOLD", x + (cw - 90) / 2 + 22, y - 23)
     end
 end
 
@@ -169,24 +198,34 @@ function poker.draw()
     love.graphics.setColor(1, 0.88, 0.4)
     love.graphics.print("ROYAL x800 • STR FLUSH x50 • 4-KIND x25 • FULL HOUSE x9 • FLUSH x6 • JACKS+ x1", 60, 92)
 
-    -- 5 карт (по умолчанию стол пуст, при раздаче карты анимируются)
-    local startX = 140
-    local startY = 260
+    -- 5 карт одного увеличенного размера (по умолчанию стол пуст, при раздаче карты анимируются)
+    local startX = 45
+    local startY = 184
+    local cw, ch = 166, 236
+    local step = 192
+
     if #poker.hand == 0 then
         for i = 1, 5 do
-            local x = startX + (i - 1) * 150
+            local x = startX + (i - 1) * step
             love.graphics.setColor(0.12, 0.05, 0.02, 0.4)
-            love.graphics.rectangle("fill", x, startY, 100, 140, 6)
+            love.graphics.rectangle("fill", x, startY, cw, ch, 6)
             love.graphics.setColor(0.55, 0.26, 0.08, 0.45)
             love.graphics.setLineWidth(2)
-            love.graphics.rectangle("line", x, startY, 100, 140, 6)
+            love.graphics.rectangle("line", x, startY, cw, ch, 6)
             love.graphics.setLineWidth(1)
             love.graphics.setColor(0.7, 0.5, 0.2, 0.35)
-            love.graphics.print(string.format("[%d]", i), x + 40, startY + 60)
+
+            local oldFont = love.graphics.getFont()
+            local cFont = getCardFont()
+            if cFont then love.graphics.setFont(cFont) end
+            local lbl = string.format("[%d]", i)
+            local lw = love.graphics.getFont():getWidth(lbl)
+            love.graphics.print(lbl, x + (cw - lw) / 2, startY + 100)
+            love.graphics.setFont(oldFont)
         end
     else
         for i, c in ipairs(poker.hand) do
-            local x = startX + (i - 1) * 150
+            local x = startX + (i - 1) * step
             local anim = c.anim or 1
             if anim >= 0 then
                 local p = math.min(1, anim)
@@ -199,9 +238,15 @@ function poker.draw()
 
     -- Статус
     love.graphics.setColor(0.18, 0.08, 0.03)
-    love.graphics.rectangle("fill", 40, 480, 944, 40, 4)
+    love.graphics.rectangle("fill", 40, 450, 944, 44, 4)
+    love.graphics.setColor(0.78, 0.52, 0.12)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", 40, 450, 944, 44, 4)
+    love.graphics.setLineWidth(1)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(poker.comboText, 320, 492)
+    local font = love.graphics.getFont()
+    local tw = font and font:getWidth(poker.comboText) or (#poker.comboText * 8)
+    love.graphics.print(poker.comboText, 512 - tw / 2, 464)
 
     -- Нижняя панель
     love.graphics.setColor(0.22, 0.1, 0.04)
@@ -296,11 +341,11 @@ function poker.mousepressed(x, y)
         return true
     end
 
-    -- Клик по картам: y in 260..400
-    if poker.phase == "draw" and y >= 260 and y <= 400 then
+    -- Клик по картам: y in 150..440
+    if poker.phase == "draw" and y >= 150 and y <= 440 then
         for i = 1, 5 do
-            local cx = 140 + (i - 1) * 150
-            if x >= cx and x <= cx + 100 then
+            local cx = 45 + (i - 1) * 192
+            if x >= cx and x <= cx + 166 then
                 poker.focusCard = i
                 poker.holds[i] = not poker.holds[i]
                 audio.play("click")
