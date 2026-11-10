@@ -84,36 +84,8 @@ end
 
 function bj.calculateScore(hand)
     local score = 0
-    local aces = 0
     for _, c in ipairs(hand) do
         score = score + c.val
-        if c.name == "A" then aces = aces + 1 end
-    end
-
-    -- Если у руки в процессе добора уже было ровно 21, туз не должен откатываться с 11 до 1:
-    if #hand > 2 then
-        for len = 2, #hand - 1 do
-            local subScore = 0
-            local subAces = 0
-            for i = 1, len do
-                subScore = subScore + hand[i].val
-                if hand[i].name == "A" then subAces = subAces + 1 end
-            end
-            while subScore > 21 and subAces > 0 do
-                subScore = subScore - 10
-                subAces = subAces - 1
-            end
-            if subScore == 21 then
-                local added = 0
-                for i = len + 1, #hand do added = added + hand[i].val end
-                return 21 + added
-            end
-        end
-    end
-
-    while score > 21 and aces > 0 do
-        score = score - 10
-        aces = aces - 1
     end
     return score
 end
@@ -187,6 +159,27 @@ function bj.deal()
 
     bj.statusKey = ""
     bj.statusWin = 0
+
+    if bj.calculateScore(bj.playerHand) > 21 then
+        bj.gameOver = true
+        bj.statusKey = "bust"
+        audio.play("fail")
+        if not bj.betDeducted then
+            economy.spend(bj.bet)
+            bj.betDeducted = true
+        end
+        if economy.getBalance() <= 0 then
+            bj.autoRestartTimer = 0
+            bankruptModal.check()
+        else
+            bj.autoRestartTimer = 2.0
+            if bj.bet > economy.getBalance() then
+                bj.bet = math.max(1, economy.getBalance())
+            end
+        end
+    elseif bj.calculateScore(bj.playerHand) == 21 then
+        bj.stand()
+    end
 end
 
 function bj.hit()
@@ -261,6 +254,9 @@ function bj.stand()
         audio.play("win")
     elseif dealerBJ and not playerBJ then
         bj.statusKey = "dealer_bj"
+        audio.play("fail")
+    elseif p > 21 then
+        bj.statusKey = "bust"
         audio.play("fail")
     elseif d > 21 or p > d then
         local win = bj.bet * 2
