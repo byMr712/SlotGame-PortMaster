@@ -242,7 +242,7 @@ function roulette.update(dt)
             roulette.targetZoom = 0
             roulette.isSpinning = false
             roulette.ballActive = false
-            roulette.statusKey = "place_your_bets"
+            roulette.statusKey = ""
         end
     end
 
