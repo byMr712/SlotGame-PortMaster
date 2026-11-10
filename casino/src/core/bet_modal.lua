@@ -109,15 +109,16 @@ function betModal.mousepressed(x, y)
         end
     end
 
-    -- Клик по нижней плашке: Confirm / Back
-    if x >= mx + 24 and x <= mx + mw - 24 and y >= my + 300 and y <= my + 348 then
-        if x < mx + mw / 2 then
+    -- Клик по кнопкам CONFIRM / BACK
+    if y >= my + 305 and y <= my + 355 then
+        if x >= mx + 40 and x <= mx + 260 then
             betModal.confirm()
-        else
+            return true
+        elseif x >= mx + 300 and x <= mx + 520 then
             audio.play("click")
             betModal.close()
+            return true
         end
-        return true
     end
 
     return true
@@ -260,16 +261,54 @@ function betModal.draw()
     local limW = font and font:getWidth(limStr) or (#limStr * 7)
     love.graphics.print(limStr, mx + mw / 2 - limW / 2, my + 260)
 
-    -- Панель горячих клавиш управления
-    love.graphics.setColor(0.14, 0.06, 0.02)
-    love.graphics.rectangle("fill", mx + 24, my + 300, mw - 48, 48, 6)
-    love.graphics.setColor(0.55, 0.26, 0.08)
-    love.graphics.rectangle("line", mx + 24, my + 300, mw - 48, 48, 6)
+    -- Кнопка [A] CONFIRM
+    local btn1X = mx + 40
+    local btnY = my + 305
+    local btnW = 220
+    local btnH = 46
 
-    love.graphics.setColor(1, 0.88, 0.4)
-    local hint = "[◄/►] SELECT   •   [▲/▼] 0-9   •   [A] CONFIRM   •   [B] BACK"
-    local hw = font and font:getWidth(hint) or (#hint * 7)
-    love.graphics.print(hint, mx + mw / 2 - hw / 2, my + 316)
+    love.graphics.setColor(0.08, 0.03, 0.01)
+    love.graphics.rectangle("fill", btn1X, btnY, btnW, btnH, 6)
+    love.graphics.setColor(0.68, 0.32, 0.1)
+    love.graphics.rectangle("fill", btn1X + 2, btnY + 2, btnW - 4, btnH - 4, 5)
+    love.graphics.setColor(0.9, 0.5, 0.2)
+    love.graphics.rectangle("line", btn1X + 2, btnY + 2, btnW - 4, btnH - 4, 5)
+
+    local cx1 = btn1X + 26
+    local cy1 = btnY + btnH / 2
+    love.graphics.setColor(0.2, 0.78, 0.35)
+    love.graphics.circle("fill", cx1, cy1, 12)
+    love.graphics.setColor(0.08, 0.03, 0.01)
+    love.graphics.setLineWidth(1.5)
+    love.graphics.circle("line", cx1, cy1, 12)
+    love.graphics.setLineWidth(1)
+    love.graphics.print("A", cx1 - 4, cy1 - 7)
+
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.print("CONFIRM", btn1X + 54, btnY + 16)
+
+    -- Кнопка [B] BACK
+    local btn2X = mx + mw - 40 - btnW
+
+    love.graphics.setColor(0.08, 0.03, 0.01)
+    love.graphics.rectangle("fill", btn2X, btnY, btnW, btnH, 6)
+    love.graphics.setColor(0.75, 0.16, 0.1)
+    love.graphics.rectangle("fill", btn2X + 2, btnY + 2, btnW - 4, btnH - 4, 5)
+    love.graphics.setColor(0.95, 0.35, 0.25)
+    love.graphics.rectangle("line", btn2X + 2, btnY + 2, btnW - 4, btnH - 4, 5)
+
+    local cx2 = btn2X + 26
+    local cy2 = btnY + btnH / 2
+    love.graphics.setColor(0.95, 0.32, 0.3)
+    love.graphics.circle("fill", cx2, cy2, 12)
+    love.graphics.setColor(0.08, 0.03, 0.01)
+    love.graphics.setLineWidth(1.5)
+    love.graphics.circle("line", cx2, cy2, 12)
+    love.graphics.setLineWidth(1)
+    love.graphics.print("B", cx2 - 4, cy2 - 7)
+
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.print("BACK", btn2X + 70, btnY + 16)
 end
 
 return betModal
