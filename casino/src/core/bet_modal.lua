@@ -444,7 +444,11 @@ function betModal.draw()
         love.graphics.rectangle("fill", bx + 6, by + 6, 44, bh - 12, 3)
         love.graphics.setColor(1, 0.95, 0.7)
         local tW = font and font:getWidth(tagText) or (#tagText * 8)
-        love.graphics.print(tagText, bx + 6 + 22 - tW / 2, by + bh / 2 - 6)
+        local tH = font and font:getHeight() or 14
+        local tx = math.floor(bx + 6 + 22 - tW / 2)
+        local ty = math.floor(by + bh / 2 - tH / 2)
+        love.graphics.print(tagText, tx, ty)
+        love.graphics.print(tagText, tx + 1, ty)
 
         -- Текст действия (/2, MIN, MAX, x2)
         love.graphics.setColor(1, 0.88, 0.4)
@@ -480,7 +484,12 @@ function betModal.draw()
     love.graphics.setLineWidth(1.5)
     love.graphics.circle("line", cx1, cy1, 13)
     love.graphics.setLineWidth(1)
-    love.graphics.print("X", cx1 - 4, cy1 - 7)
+    local xw = font and font:getWidth("X") or 8
+    local xh = font and font:getHeight() or 14
+    local tx1 = math.floor(cx1 - xw / 2)
+    local ty1 = math.floor(cy1 - xh / 2)
+    love.graphics.print("X", tx1, ty1)
+    love.graphics.print("X", tx1 + 1, ty1)
 
     love.graphics.setColor(1, 1, 1)
     local cTxt = i18n.t("confirm")
@@ -504,7 +513,12 @@ function betModal.draw()
     love.graphics.setLineWidth(1.5)
     love.graphics.circle("line", cx2, cy2, 13)
     love.graphics.setLineWidth(1)
-    love.graphics.print("B", cx2 - 4, cy2 - 7)
+    local bw_k = font and font:getWidth("B") or 8
+    local bh_k = font and font:getHeight() or 14
+    local tx2 = math.floor(cx2 - bw_k / 2)
+    local ty2 = math.floor(cy2 - bh_k / 2)
+    love.graphics.print("B", tx2, ty2)
+    love.graphics.print("B", tx2 + 1, ty2)
 
     love.graphics.setColor(1, 1, 1)
     local bTxt = i18n.t("back")

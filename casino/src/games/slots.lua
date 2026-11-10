@@ -498,8 +498,15 @@ function slots.draw()
     love.graphics.setLineWidth(2)
     love.graphics.circle("line", bx + 40, 568, 14)
     love.graphics.setLineWidth(1)
+    local font = love.graphics.getFont()
+    local cx, cy = bx + 40, 568
+    local kw = font and font:getWidth("X") or 8
+    local kh = font and font:getHeight() or 14
+    local tx = math.floor(cx - kw / 2)
+    local ty = math.floor(cy - kh / 2)
     love.graphics.setColor(0.15, 0.05, 0.02, spinAlpha)
-    love.graphics.print("X", bx + 36, 560)
+    love.graphics.print("X", tx, ty)
+    love.graphics.print("X", tx + 1, ty)
 
     -- Текст SPIN!
     love.graphics.setColor(1, 0.98, 0.92, spinAlpha)

@@ -437,7 +437,11 @@ function poker.draw()
         else
             local font = love.graphics.getFont()
             local kw = font and font:getWidth(dir) or (#dir * 8)
-            love.graphics.print(dir, cx - kw / 2, cy - 7)
+            local kh = font and font:getHeight() or 14
+            local tx = math.floor(cx - kw / 2)
+            local ty = math.floor(cy - kh / 2)
+            love.graphics.print(dir, tx, ty)
+            love.graphics.print(dir, tx + 1, ty)
         end
 
         love.graphics.setColor(1, 1, 1)

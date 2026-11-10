@@ -196,7 +196,13 @@ function bankruptModal.draw()
         love.graphics.circle("line", bx + 32, by + bh / 2, 14)
         love.graphics.setColor(0.65, 0.65, 0.65)
         if tFont then love.graphics.setFont(tFont) end
-        love.graphics.print("X", bx + 25, by + bh / 2 - 13)
+        local cFont = love.graphics.getFont()
+        local xw = cFont and cFont:getWidth("X") or 14
+        local xh = cFont and cFont:getHeight() or 24
+        local tx = math.floor(bx + 32 - xw / 2)
+        local ty = math.floor(by + bh / 2 - xh / 2)
+        love.graphics.print("X", tx, ty)
+        love.graphics.print("X", tx + 1, ty)
 
         -- Серый текст
         love.graphics.setColor(0.65, 0.65, 0.65)
@@ -223,7 +229,13 @@ function bankruptModal.draw()
         love.graphics.circle("line", bx + 32, by + bh / 2, 14)
         love.graphics.setColor(1, 1, 1)
         if tFont then love.graphics.setFont(tFont) end
-        love.graphics.print("X", bx + 25, by + bh / 2 - 13)
+        local cFont2 = love.graphics.getFont()
+        local xw2 = cFont2 and cFont2:getWidth("X") or 14
+        local xh2 = cFont2 and cFont2:getHeight() or 24
+        local tx2 = math.floor(bx + 32 - xw2 / 2)
+        local ty2 = math.floor(by + bh / 2 - xh2 / 2)
+        love.graphics.print("X", tx2, ty2)
+        love.graphics.print("X", tx2 + 1, ty2)
 
         -- Текст "ПОНЯЛ" / "UNDERSTOOD"
         love.graphics.setColor(1, 0.95, 0.8)
