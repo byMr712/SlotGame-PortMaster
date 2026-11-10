@@ -132,10 +132,20 @@ function bj.deal()
     bj.autoRestartTimer = 0
     bj.currentCardBack = pickNewCardBack()
 
-    local p1 = table.remove(bj.deck); p1.anim = 0.0
-    local d1 = table.remove(bj.deck); d1.anim = -0.15
-    local p2 = table.remove(bj.deck); p2.anim = -0.30
-    local d2 = table.remove(bj.deck); d2.anim = -0.45
+    local function dealInitialTwo(anim1, anim2)
+        local c1 = table.remove(bj.deck)
+        local c2 = table.remove(bj.deck)
+        while (c1.val + c2.val) >= 21 do
+            table.insert(bj.deck, math.random(1, #bj.deck), c2)
+            c2 = table.remove(bj.deck)
+        end
+        c1.anim = anim1
+        c2.anim = anim2
+        return c1, c2
+    end
+
+    local p1, p2 = dealInitialTwo(0.0, -0.30)
+    local d1, d2 = dealInitialTwo(-0.15, -0.45)
 
     bj.playerHand = { p1, p2 }
     bj.dealerHand = { d1, d2 }
@@ -159,25 +169,6 @@ function bj.deal()
 
     bj.statusKey = ""
     bj.statusWin = 0
-
-    if bj.calculateScore(bj.playerHand) > 21 then
-        bj.gameOver = true
-        bj.statusKey = "bust"
-        audio.play("fail")
-        if not bj.betDeducted then
-            economy.spend(bj.bet)
-            bj.betDeducted = true
-        end
-        if economy.getBalance() <= 0 then
-            bj.autoRestartTimer = 0
-            bankruptModal.check()
-        else
-            bj.autoRestartTimer = 2.0
-            if bj.bet > economy.getBalance() then
-                bj.bet = math.max(1, economy.getBalance())
-            end
-        end
-    end
 end
 
 function bj.hit()
