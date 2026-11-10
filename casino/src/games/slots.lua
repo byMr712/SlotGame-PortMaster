@@ -246,6 +246,7 @@ function slots.draw()
     love.graphics.setLineWidth(1)
 
     local centerY = startY + reelH / 2
+    local cornerR = 18
 
     -- 3. Барабаны
     for r = 1, 3 do
@@ -254,14 +255,19 @@ function slots.draw()
         -- Саспенс-подсветка третьего барабана
         if r == 3 and slots.tension then
             love.graphics.setColor(1, 0.88, 0.2, 0.75)
-            love.graphics.rectangle("fill", rx - 4, startY - 4, reelW + 8, reelH + 8, 4)
+            love.graphics.rectangle("fill", rx - 4, startY - 4, reelW + 8, reelH + 8, cornerR + 4)
         end
 
         -- Ниша барабана
         love.graphics.setColor(0.08, 0.03, 0.01)
-        love.graphics.rectangle("fill", rx, startY, reelW, reelH, 4)
+        love.graphics.rectangle("fill", rx, startY, reelW, reelH, cornerR)
 
-        -- Ограничение отрисовки окном барабана
+        -- Трафарет со скругленными углами и отсечение
+        local function reelMask()
+            love.graphics.rectangle("fill", rx, startY, reelW, reelH, cornerR)
+        end
+        love.graphics.stencil(reelMask, "replace", 1)
+        love.graphics.setStencilTest("greater", 0)
         love.graphics.setScissor(rx, startY, reelW, reelH)
 
         -- 1. Цилиндрическая лента барабана с градиентом освещения выпуклого барабана
@@ -370,6 +376,16 @@ function slots.draw()
         love.graphics.rectangle("fill", rx, startY + reelH - 2, reelW, 2)
 
         love.graphics.setScissor()
+        love.graphics.setStencilTest()
+
+        -- 7. Внешняя рамка барабана со скругленными углами
+        love.graphics.setColor(0.08, 0.03, 0.01)
+        love.graphics.setLineWidth(4)
+        love.graphics.rectangle("line", rx, startY, reelW, reelH, cornerR)
+        love.graphics.setColor(0.35, 0.18, 0.06, 0.75)
+        love.graphics.setLineWidth(2)
+        love.graphics.rectangle("line", rx + 1, startY + 1, reelW - 2, reelH - 2, cornerR - 1)
+        love.graphics.setLineWidth(1)
 
         -- Разделительные латунные стойки между барабанами
         if r < 3 then

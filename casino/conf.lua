@@ -11,6 +11,7 @@ function love.conf(t)
     t.window.fullscreen = false
     t.window.vsync = 1
     t.window.highdpi = false
+    t.window.stencil = true
 
     t.modules.audio = true
     t.modules.sound = true
