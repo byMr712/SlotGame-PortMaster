@@ -322,14 +322,33 @@ function slots.draw()
 
     -- Кнопка СПИН
     local spinAlpha = slots.isSpinning and 0.5 or 1.0
-    love.graphics.setColor(0.7, 0.15, 0.1, spinAlpha)
+    -- Темный внешний контур и тень
+    love.graphics.setColor(0.08, 0.03, 0.01, spinAlpha)
     love.graphics.rectangle("fill", 730, 540, 234, 56, 6)
-    love.graphics.setColor(1, 0.88, 0.4, spinAlpha)
+
+    -- Рубиновый корпус кнопки
+    love.graphics.setColor(0.78, 0.16, 0.10, spinAlpha)
+    love.graphics.rectangle("fill", 733, 543, 228, 50, 4)
+
+    -- Внутренняя золотисто-светлая фаска блика сверху
+    love.graphics.setColor(0.96, 0.45, 0.35, spinAlpha)
     love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", 730, 540, 234, 56, 6)
+    love.graphics.rectangle("line", 734, 544, 226, 48, 4)
     love.graphics.setLineWidth(1)
-    love.graphics.setColor(1, 1, 1, spinAlpha)
-    love.graphics.print("[X] SPIN!", 810, 560)
+
+    -- Золотая круглая кнопка геймпада (X)
+    love.graphics.setColor(0.95, 0.78, 0.25, spinAlpha)
+    love.graphics.circle("fill", 800, 568, 14)
+    love.graphics.setColor(0.15, 0.05, 0.02, spinAlpha)
+    love.graphics.setLineWidth(2)
+    love.graphics.circle("line", 800, 568, 14)
+    love.graphics.setLineWidth(1)
+    love.graphics.setColor(0.15, 0.05, 0.02, spinAlpha)
+    love.graphics.print("X", 796, 560)
+
+    -- Текст SPIN!
+    love.graphics.setColor(1, 0.98, 0.92, spinAlpha)
+    love.graphics.print("SPIN!", 830, 560)
 end
 
 function slots.keypressed(key)
