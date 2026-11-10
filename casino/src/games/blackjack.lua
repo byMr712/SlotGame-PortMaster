@@ -177,8 +177,6 @@ function bj.deal()
                 bj.bet = math.max(1, economy.getBalance())
             end
         end
-    elseif bj.calculateScore(bj.playerHand) == 21 then
-        bj.stand()
     end
 end
 
