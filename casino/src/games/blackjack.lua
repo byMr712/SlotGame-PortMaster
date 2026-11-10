@@ -20,6 +20,7 @@ bj.deck = {}
 bj.playerHand = {}
 bj.dealerHand = {}
 bj.gameOver = true
+bj.hasHit = false
 bj.statusText = ""
 bj.dealAnim = 1
 
@@ -98,6 +99,7 @@ function bj.deal()
 
     audio.play("click")
     bj.gameOver = false
+    bj.hasHit = false
     bj.currentCardBack = pickNewCardBack()
 
     local p1 = table.remove(bj.deck); p1.anim = 0.0
@@ -130,6 +132,7 @@ end
 
 function bj.hit()
     if bj.gameOver then return end
+    bj.hasHit = true
     audio.play("click")
     local c = table.remove(bj.deck)
     c.anim = 0.0
@@ -352,7 +355,7 @@ function bj.draw()
     love.graphics.setColor(1, 0.88, 0.4)
     love.graphics.print(economy.format(bj.bet), 96, 590)
 
-    if not bj.gameOver then
+    if not bj.gameOver and bj.hasHit then
         love.graphics.setColor(0.6, 0.5, 0.4)
         love.graphics.print("(LOCKED)", 205, 590)
     end
@@ -423,6 +426,10 @@ function bj.keypressed(key)
     elseif key == "right" then
         if bj.gameOver then bj.deal() end
     elseif key == "y" then
+        if not bj.gameOver and bj.hasHit then
+            audio.play("fail")
+            return
+        end
         betModal.open(bj.bet, 100, economy.getBalance(), function(newBet)
             bj.bet = newBet
         end)
@@ -438,6 +445,10 @@ end
 function bj.mousepressed(x, y)
     -- Окно ставки [Y] (щедрая зона клика)
     if x >= 40 and x <= 335 and y >= 550 and y <= 620 then
+        if not bj.gameOver and bj.hasHit then
+            audio.play("fail")
+            return true
+        end
         betModal.open(bj.bet, 100, economy.getBalance(), function(newBet)
             bj.bet = newBet
         end)
