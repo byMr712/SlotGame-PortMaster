@@ -272,16 +272,19 @@ function sprites.init()
 end
 
 -- Draw a pixel-art sprite centered at (cx, cy) scaled to targetSize
-function sprites.draw(name, cx, cy, targetSize, alpha)
+function sprites.draw(name, cx, cy, targetSize, alpha, scaleYMult, colorMult)
     local data = images[name]
     if not data then return end
     
     targetSize = targetSize or data.w
     alpha = alpha or 1
-    local scale = targetSize / data.w
+    scaleYMult = scaleYMult or 1.0
+    colorMult = colorMult or 1.0
+    local scaleX = targetSize / data.w
+    local scaleY = scaleX * scaleYMult
     
-    love.graphics.setColor(1, 1, 1, alpha)
-    love.graphics.draw(data.img, cx, cy, 0, scale, scale, data.w / 2, data.h / 2)
+    love.graphics.setColor(colorMult, colorMult, colorMult, alpha)
+    love.graphics.draw(data.img, cx, cy, 0, scaleX, scaleY, data.w / 2, data.h / 2)
 end
 
 -- Fallback check in case init wasn't called before first draw

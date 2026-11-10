@@ -235,40 +235,110 @@ function slots.draw()
         -- Ограничение отрисовки окном барабана
         love.graphics.setScissor(rx, startY, reelW, reelH)
 
-        -- Чистый аутентичный кремовый фон барабана (как в Stardew Valley)
-        love.graphics.setColor(0.965, 0.937, 0.878)
-        love.graphics.rectangle("fill", rx, startY, reelW, reelH)
+        -- 1. Цилиндрическая лента барабана с градиентом освещения выпуклого барабана
+        for sy = 0, reelH - 4, 4 do
+            local y = startY + sy
+            local norm = (y + 2 - centerY) / (reelH / 2)
+            local cosY = math.cos(norm * 1.05)
+            local ly = math.max(0.18, math.pow(cosY, 1.4))
+            -- Аутентичный кремовый цвет барабана, плавно переходящий в тень сверху и снизу
+            local cr = 0.965 * ly
+            local cg = 0.937 * (ly * 0.96 + 0.04)
+            local cb = 0.878 * (ly * 0.91 + 0.09)
+            love.graphics.setColor(cr, cg, cb)
+            love.graphics.rectangle("fill", rx, y, reelW, 4)
+        end
 
-        -- Непрерывная лента символов
+        -- 2. Боковые тени и фаски металлической ленты (3D объем ленты барабана)
+        for dx = 0, 16 do
+            local a = math.pow(1 - dx / 16, 1.3) * 0.45
+            love.graphics.setColor(0.08, 0.03, 0.01, a)
+            love.graphics.rectangle("fill", rx + dx, startY, 1, reelH)
+            love.graphics.rectangle("fill", rx + reelW - 1 - dx, startY, 1, reelH)
+        end
+        -- Латунная окантовка края ленты
+        love.graphics.setColor(0.82, 0.62, 0.22, 0.35)
+        love.graphics.line(rx + 5, startY, rx + 5, startY + reelH)
+        love.graphics.line(rx + reelW - 5, startY, rx + reelW - 5, startY + reelH)
+
+        -- 3. Цилиндрическая проекция непрерывной ленты символов и 3D ребер
         local normOffset = slots.reels[r].offset % STRIP_HEIGHT
+        local R = 175
+        local maxAngle = 1.03
 
+        -- 3.1 Разделительные литые латунные ребра барабана
         for i = 1, NUM_SYMBOLS do
-            local itemY = centerY + (i - 1) * CELL_H - normOffset
-            -- Зацикливание координат для непрерывного скролла
-            while itemY < startY - CELL_H do itemY = itemY + STRIP_HEIGHT end
-            while itemY > startY + reelH + CELL_H do itemY = itemY - STRIP_HEIGHT end
+            local divDist = (i - 0.5) * CELL_H - normOffset
+            while divDist < -STRIP_HEIGHT / 2 do divDist = divDist + STRIP_HEIGHT end
+            while divDist > STRIP_HEIGHT / 2 do divDist = divDist - STRIP_HEIGHT end
 
-            if itemY > startY - CELL_H and itemY < startY + reelH + CELL_H then
-                -- Разделительное латунное ребро ячейки
-                love.graphics.setColor(0.85, 0.78, 0.65)
-                love.graphics.line(rx + 6, itemY - CELL_H / 2, rx + reelW - 6, itemY - CELL_H / 2)
-                love.graphics.setColor(1, 1, 1, 0.6)
-                love.graphics.line(rx + 6, itemY - CELL_H / 2 + 1, rx + reelW - 6, itemY - CELL_H / 2 + 1)
+            if math.abs(divDist) <= 200 then
+                local theta = (divDist / 180) * maxAngle
+                local divY = centerY + R * math.sin(theta)
+                local divCos = math.cos(theta)
+                local divBright = math.max(0.22, math.pow(divCos, 1.35))
+                local ribH = math.max(2, math.floor(5 * divCos))
 
-                -- Тень символа
-                sprites.draw(slots.symbols[i], rx + reelW / 2, itemY + 3, 84, 0.25)
-                -- Сам четкий 16-битный спрайт
-                sprites.draw(slots.symbols[i], rx + reelW / 2, itemY, 84, 1.0)
+                -- Нижняя тень ребра
+                love.graphics.setColor(0.08, 0.03, 0.01, 0.7 * divBright)
+                love.graphics.rectangle("fill", rx + 6, divY + ribH / 2, reelW - 12, 2)
+
+                -- Тело латунной планки
+                love.graphics.setColor(0.72 * divBright, 0.45 * divBright, 0.14 * divBright)
+                love.graphics.rectangle("fill", rx + 6, divY - ribH / 2, reelW - 12, ribH, 1)
+
+                -- Золотая полированная фаска сверху
+                love.graphics.setColor(1.0 * divBright, 0.90 * divBright, 0.55 * divBright)
+                love.graphics.line(rx + 8, divY - ribH / 2, rx + reelW - 8, divY - ribH / 2)
+
+                -- Заклепки по бокам ребра
+                love.graphics.setColor(1.0 * divBright, 0.92 * divBright, 0.6 * divBright)
+                love.graphics.circle("fill", rx + 14, divY, 2)
+                love.graphics.circle("fill", rx + reelW - 14, divY, 2)
             end
         end
 
-        -- Мягкое виньетирование свода цилиндра сверху и снизу (25px, без черного пятна)
-        for d = 0, 25, 3 do
-            local alpha = (1 - d / 25) * 0.7
-            love.graphics.setColor(0.08, 0.04, 0.01, alpha)
-            love.graphics.rectangle("fill", rx, startY + d, reelW, 3)
-            love.graphics.rectangle("fill", rx, startY + reelH - d - 3, reelW, 3)
+        -- 3.2 Символы с ракурсным сжатием и освещением цилиндра
+        for i = 1, NUM_SYMBOLS do
+            local linearDist = (i - 1) * CELL_H - normOffset
+            while linearDist < -STRIP_HEIGHT / 2 do linearDist = linearDist + STRIP_HEIGHT end
+            while linearDist > STRIP_HEIGHT / 2 do linearDist = linearDist - STRIP_HEIGHT end
+
+            if math.abs(linearDist) <= 200 then
+                local theta = (linearDist / 180) * maxAngle
+                local projY = centerY + R * math.sin(theta)
+                local cosTheta = math.cos(theta)
+
+                -- Сжатие по вертикали и освещенность цилиндра
+                local scaleY = math.max(0.48, cosTheta)
+                local scaleX = 0.86 + 0.14 * cosTheta
+                local brightness = math.max(0.35, math.pow(cosTheta, 1.4))
+                local targetSize = 84 * scaleX
+
+                -- Тень символа на цилиндрической поверхности
+                sprites.draw(slots.symbols[i], rx + reelW / 2, projY + 4 * scaleY, targetSize, 0.3 * brightness, scaleY, 0.1)
+                -- Сам 16-битный спрайт с динамическим ракурсным сжатием
+                sprites.draw(slots.symbols[i], rx + reelW / 2, projY, targetSize, 1.0, scaleY, brightness)
+            end
         end
+
+        -- 4. Глубокие тени сводов барабанной ниши сверху и снизу (виньетирование кривизны)
+        for d = 0, 70, 2 do
+            local alpha = math.pow(1 - d / 70, 1.6) * 0.92
+            love.graphics.setColor(0.06, 0.02, 0.01, alpha)
+            love.graphics.rectangle("fill", rx, startY + d, reelW, 2)
+            love.graphics.rectangle("fill", rx, startY + reelH - d - 2, reelW, 2)
+        end
+
+        -- 5. Тонкий стеклянный блик на смотровом стекле барабана
+        love.graphics.setColor(1, 1, 1, 0.035)
+        love.graphics.polygon("fill", rx, startY, rx + 80, startY, rx + reelW, startY + reelH - 80, rx + reelW, startY + reelH)
+
+        -- 6. Латунные фаски проема барабана
+        love.graphics.setColor(0.85, 0.65, 0.22, 0.7)
+        love.graphics.rectangle("fill", rx, startY, reelW, 2)
+        love.graphics.setColor(0.35, 0.18, 0.06, 0.85)
+        love.graphics.rectangle("fill", rx, startY + reelH - 2, reelW, 2)
 
         love.graphics.setScissor()
 
