@@ -23,6 +23,14 @@ bj.gameOver = true
 bj.hasHit = false
 bj.statusText = ""
 bj.dealAnim = 1
+bj.betDeducted = false
+bj.autoRestartTimer = 0
+bj.controlMode = 0 -- 0: D-Pad (Up/Down/Left), 1: ABX (X=Hit, B=Stand, A=Double)
+
+function bj.toggleControlMode()
+    bj.controlMode = (bj.controlMode == 0) and 1 or 0
+    audio.play("click")
+end
 
 local cardBackSymbols = { "stardrop", "prism", "ancient", "cherry", "parsnip" }
 bj.currentCardBack = "stardrop"
@@ -109,19 +117,25 @@ function bj.update(dt)
             c.anim = math.min(1, c.anim + dt * 2.2)
         end
     end
+
+    -- Авто-раскладка новой партии через 2 секунды после завершения
+    if bj.gameOver and bj.autoRestartTimer and bj.autoRestartTimer > 0 then
+        bj.autoRestartTimer = bj.autoRestartTimer - dt
+        if bj.autoRestartTimer <= 0 then
+            bj.autoRestartTimer = 0
+            bj.deal()
+        end
+    end
 end
 
 function bj.deal()
-    if not economy.spend(bj.bet) then
-        audio.play("fail")
-        return
-    end
-
     if #bj.deck < 52 then bj.createDeck() end
 
     audio.play("click")
     bj.gameOver = false
     bj.hasHit = false
+    bj.betDeducted = false
+    bj.autoRestartTimer = 0
     bj.currentCardBack = pickNewCardBack()
 
     local p1 = table.remove(bj.deck); p1.anim = 0.0
@@ -154,6 +168,19 @@ end
 
 function bj.hit()
     if bj.gameOver then return end
+
+    -- Ставка забирается только когда игрок решил взять карту (подкинуть)
+    if not bj.betDeducted then
+        if not economy.spend(bj.bet) then
+            audio.play("fail")
+            if bankruptModal.check() then
+                -- открыто окно банкротства
+            end
+            return
+        end
+        bj.betDeducted = true
+    end
+
     bj.hasHit = true
     audio.play("click")
     local c = table.remove(bj.deck)
@@ -165,6 +192,7 @@ function bj.hit()
         bj.gameOver = true
         bj.statusText = i18n.t("bust")
         audio.play("fail")
+        bj.autoRestartTimer = 2.0
         if bankruptModal.check() then
             -- открыто окно банкротства
         elseif bj.bet > economy.getBalance() then
@@ -175,7 +203,20 @@ end
 
 function bj.stand()
     if bj.gameOver then return end
+
+    if not bj.betDeducted then
+        if not economy.spend(bj.bet) then
+            audio.play("fail")
+            if bankruptModal.check() then
+                -- открыто окно банкротства
+            end
+            return
+        end
+        bj.betDeducted = true
+    end
+
     bj.gameOver = true
+    bj.autoRestartTimer = 2.0
 
     local p = bj.calculateScore(bj.playerHand)
     local d = bj.calculateScore(bj.dealerHand)
@@ -214,7 +255,18 @@ function bj.stand()
 end
 
 function bj.double()
-    if bj.gameOver or #bj.playerHand ~= 2 or not economy.canAfford(bj.bet) then return end
+    if bj.gameOver or #bj.playerHand ~= 2 then return end
+    local needed = bj.betDeducted and bj.bet or (bj.bet * 2)
+    if not economy.canAfford(needed) then
+        audio.play("fail")
+        return
+    end
+
+    if not bj.betDeducted then
+        economy.spend(bj.bet)
+        bj.betDeducted = true
+    end
+
     economy.spend(bj.bet)
     bj.bet = bj.bet * 2
     bj.hit()
@@ -403,7 +455,7 @@ function bj.draw()
         love.graphics.circle("line", cx, cy, 11)
         love.graphics.setLineWidth(1)
 
-        -- Стрелка D-Pad (пиксель-арт геометрия без глитчей растрирования)
+        -- Стрелка D-Pad или буквенная метка (пиксель-арт геометрия)
         love.graphics.setColor(0.08, 0.03, 0.01)
         if dir == "up" then
             love.graphics.rectangle("fill", cx - 1, cy - 5, 2, 2)
@@ -420,11 +472,10 @@ function bj.draw()
             love.graphics.rectangle("fill", cx - 3, cy - 3, 2, 6)
             love.graphics.rectangle("fill", cx - 1, cy - 5, 2, 10)
             love.graphics.rectangle("fill", cx + 1, cy - 2, 4, 4)
-        elseif dir == "right" then
-            love.graphics.rectangle("fill", cx - 5, cy - 2, 4, 4)
-            love.graphics.rectangle("fill", cx - 1, cy - 5, 2, 10)
-            love.graphics.rectangle("fill", cx + 1, cy - 3, 2, 6)
-            love.graphics.rectangle("fill", cx + 3, cy - 1, 2, 2)
+        else
+            local font = love.graphics.getFont()
+            local kw = font and font:getWidth(dir) or (#dir * 8)
+            love.graphics.print(dir, cx - kw / 2, cy - 7)
         end
 
         -- Текст действия
@@ -432,10 +483,17 @@ function bj.draw()
         love.graphics.print(label, bx + 36, cy - 7)
     end
 
-    drawGameBtn(345, 570, 140, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "up", "HIT")
-    drawGameBtn(505, 570, 145, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "down", "STAND")
-    drawGameBtn(670, 570, 150, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "left", "DOUBLE")
-    drawGameBtn(840, 570, 140, 40, {0.68, 0.32, 0.1}, {0.32, 0.62, 0.96}, "right", "DEAL")
+    if bj.controlMode == 0 then
+        drawGameBtn(345, 570, 140, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "up", "HIT")
+        drawGameBtn(505, 570, 145, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "down", "STAND")
+        drawGameBtn(670, 570, 150, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "left", "DOUBLE")
+    else
+        drawGameBtn(345, 570, 140, 40, {0.68, 0.32, 0.1}, {0.32, 0.62, 0.96}, "X", "HIT")
+        drawGameBtn(505, 570, 145, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "B", "STAND")
+        drawGameBtn(670, 570, 150, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", "DOUBLE")
+    end
+    -- Первая справа кнопка SWITCH (R2), не меняется никогда
+    drawGameBtn(840, 570, 140, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "R2", "SWITCH")
 end
 
 function bj.resetTable()
@@ -443,21 +501,38 @@ function bj.resetTable()
     bj.dealerHand = {}
     bj.gameOver = true
     bj.hasHit = false
+    bj.betDeducted = false
+    bj.autoRestartTimer = 0
     bj.statusText = ""
     bj.result = nil
     bj.state = "betting"
 end
 
 function bj.keypressed(key)
-    if key == "up" then
-        bj.hit()
-    elseif key == "down" then
-        bj.stand()
-    elseif key == "left" then
-        bj.double()
-    elseif key == "right" then
-        if bj.gameOver then bj.deal() end
-    elseif key == "y" then
+    if key == "r2" or key == "c" or key == "tab" then
+        bj.toggleControlMode()
+        return
+    end
+
+    if bj.controlMode == 0 then
+        if key == "up" then
+            bj.hit()
+        elseif key == "down" then
+            bj.stand()
+        elseif key == "left" then
+            bj.double()
+        end
+    else
+        if key == "x" then
+            bj.hit()
+        elseif key == "b" then
+            bj.stand()
+        elseif key == "a" then
+            bj.double()
+        end
+    end
+
+    if key == "y" then
         if not bj.gameOver and bj.hasHit then
             audio.play("fail")
             return
@@ -482,21 +557,21 @@ function bj.mousepressed(x, y)
     end
 
     -- Кнопки действий:
-    -- HIT (вверх): 345, 570, 140, 40
+    -- HIT: 345, 570, 140, 40
     if x >= 345 and x <= 485 and y >= 570 and y <= 610 then
         bj.hit()
         return true
-    -- STAND (вниз): 505, 570, 145, 40
+    -- STAND: 505, 570, 145, 40
     elseif x >= 505 and x <= 650 and y >= 570 and y <= 610 then
         bj.stand()
         return true
-    -- DOUBLE (влево): 670, 570, 150, 40
+    -- DOUBLE: 670, 570, 150, 40
     elseif x >= 670 and x <= 820 and y >= 570 and y <= 610 then
         bj.double()
         return true
-    -- DEAL (вправо): 840, 570, 140, 40
+    -- SWITCH (R2, первая справа): 840, 570, 140, 40
     elseif x >= 840 and x <= 980 and y >= 570 and y <= 610 then
-        if bj.gameOver then bj.deal() end
+        bj.toggleControlMode()
         return true
     end
 

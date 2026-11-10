@@ -282,6 +282,10 @@ function love.gamepadpressed(joystick, button)
         handleGlobalInput("currency")
     elseif button == "start" then
         handleGlobalInput("language")
+    elseif button == "righttrigger" then
+        love.keypressed("r2")
+    elseif button == "lefttrigger" then
+        love.keypressed("l2")
     else
         local map = {
             dpup = "up", dpdown = "down", dpleft = "left", dpright = "right",
@@ -326,8 +330,10 @@ function love.joystickpressed(joystick, button)
 
     if button == 5 or button == 7 then
         handleGlobalInput("prev_tab")
-    elseif button == 6 or button == 8 then
+    elseif button == 6 then
         handleGlobalInput("next_tab")
+    elseif button == 8 then
+        love.keypressed("r2")
     elseif button == 9 then
         handleGlobalInput("currency")
     elseif button == 10 then
