@@ -192,11 +192,50 @@ local function drawCard(c, x, y, held, focused)
 end
 
 function poker.draw()
-    -- Таблица комбинаций 9/6 сверху
-    love.graphics.setColor(0.22, 0.1, 0.04)
-    love.graphics.rectangle("fill", 40, 80, 944, 40, 4)
-    love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print("ROYAL x800 • STR FLUSH x50 • 4-KIND x25 • FULL HOUSE x9 • FLUSH x6 • JACKS+ x1", 60, 92)
+    local font = love.graphics.getFont()
+
+    -- Таблица комбинаций сверху (расширена вниз, высота 58px, увеличенный шрифт в латунных ячейках)
+    love.graphics.setColor(0.18, 0.08, 0.03)
+    love.graphics.rectangle("fill", 40, 74, 944, 58, 4)
+    love.graphics.setColor(0.78, 0.52, 0.12)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", 40, 74, 944, 58, 4)
+    love.graphics.setLineWidth(1)
+
+    local combos = {
+        { name = "ROYAL", mult = "x800" },
+        { name = "STR FLUSH", mult = "x50" },
+        { name = "4 OF KIND", mult = "x25" },
+        { name = "FULL HOUSE", mult = "x9" },
+        { name = "JACKS+", mult = "x1" },
+    }
+
+    local padX = 6
+    local gap = 8
+    local totalW = 944 - padX * 2
+    local cellW = math.floor((totalW - (#combos - 1) * gap) / #combos)
+    local cellH = 46
+    local cellY = 80
+
+    for i, c in ipairs(combos) do
+        local bx = 40 + padX + (i - 1) * (cellW + gap)
+
+        -- Фон и рамка ячейки
+        love.graphics.setColor(0.12, 0.05, 0.02)
+        love.graphics.rectangle("fill", bx, cellY, cellW, cellH, 4)
+        love.graphics.setColor(0.36, 0.16, 0.06)
+        love.graphics.rectangle("line", bx, cellY, cellW, cellH, 4)
+
+        -- Название комбинации
+        love.graphics.setColor(1, 0.88, 0.4)
+        local ntw = font and font:getWidth(c.name) or (#c.name * 8)
+        love.graphics.print(c.name, bx + (cellW - ntw * 1.1) / 2, cellY + 6, 0, 1.1, 1.1)
+
+        -- Множитель крупным шрифтом
+        love.graphics.setColor(1, 0.92, 0.45)
+        local mtw = font and font:getWidth(c.mult) or (#c.mult * 8)
+        love.graphics.print(c.mult, bx + (cellW - mtw * 1.2) / 2, cellY + 23, 0, 1.2, 1.2)
+    end
 
     -- 5 карт одного увеличенного размера (по умолчанию стол пуст, при раздаче карты анимируются)
     local startX = 45
