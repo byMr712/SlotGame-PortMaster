@@ -4,6 +4,7 @@ local economy = require("src.core.economy")
 local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
 local sprites = require("src.core.sprites")
+local betModal = require("src.core.bet_modal")
 
 poker.bet = 500
 poker.deck = {}
@@ -206,20 +207,29 @@ function poker.draw()
     love.graphics.setColor(0.22, 0.1, 0.04)
     love.graphics.rectangle("fill", 40, 560, 944, 60, 4)
 
-    -- Панель ставки (D-Pad)
+    -- Панель ставки [Y]
     love.graphics.setColor(0.12, 0.05, 0.02)
-    love.graphics.rectangle("fill", 55, 566, 280, 48, 4)
-    love.graphics.setColor(0.65, 0.45, 0.15)
-    love.graphics.rectangle("line", 55, 566, 280, 48, 4)
+    love.graphics.rectangle("fill", 55, 566, 260, 48, 4)
+    love.graphics.setColor(0.78, 0.52, 0.12)
+    love.graphics.rectangle("line", 55, 566, 260, 48, 4)
+
+    -- Желтый значок [Y]
+    love.graphics.setColor(0.96, 0.78, 0.2)
+    love.graphics.circle("fill", 76, 590, 12)
+    love.graphics.setColor(0.08, 0.03, 0.01)
+    love.graphics.setLineWidth(1.5)
+    love.graphics.circle("line", 76, 590, 12)
+    love.graphics.setLineWidth(1)
+    love.graphics.print("Y", 72, 583)
 
     love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print("BET [D-PAD ±100 / ±1K]", 65, 572)
+    love.graphics.print("BET (PRESS Y):", 96, 574)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(economy.format(poker.bet), 65, 590)
+    love.graphics.print(economy.format(poker.bet), 96, 590)
 
     if poker.phase == "draw" then
         love.graphics.setColor(0.6, 0.5, 0.4)
-        love.graphics.print("(LOCKED)", 180, 590)
+        love.graphics.print("(LOCKED)", 205, 590)
     end
 
     local function drawGameBtn(bx, by, bw, bh, bCol, keyCol, keyChar, label)
@@ -251,18 +261,10 @@ end
 
 function poker.keypressed(key)
     if poker.phase == "deal" then
-        if key == "up" then
-            poker.bet = poker.bet + 100
-            audio.play("click")
-        elseif key == "down" then
-            poker.bet = math.max(100, poker.bet - 100)
-            audio.play("click")
-        elseif key == "right" then
-            poker.bet = poker.bet + 1000
-            audio.play("click")
-        elseif key == "left" then
-            poker.bet = math.max(100, poker.bet - 1000)
-            audio.play("click")
+        if key == "y" then
+            betModal.open(poker.bet, 100, economy.getBalance(), function(newBet)
+                poker.bet = newBet
+            end)
         end
     else
         if key == "left" then

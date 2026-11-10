@@ -4,6 +4,7 @@ local economy = require("src.core.economy")
 local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
 local sprites = require("src.core.sprites")
+local betModal = require("src.core.bet_modal")
 
 slots.bet = 500
 slots.lastWin = 0
@@ -297,15 +298,25 @@ function slots.draw()
     love.graphics.setColor(0.78, 0.52, 0.12)
     love.graphics.rectangle("line", 40, 524, 944, 88, 6)
 
-    -- Информационные плашки: СТАВКА (управление D-Pad) и ВЫИГРЫШ
+    -- Информационные плашки: СТАВКА [Y] и ВЫИГРЫШ
     love.graphics.setColor(0.12, 0.05, 0.02)
     love.graphics.rectangle("fill", 60, 544, 270, 48, 4)
-    love.graphics.setColor(0.65, 0.45, 0.15)
+    love.graphics.setColor(0.78, 0.52, 0.12)
     love.graphics.rectangle("line", 60, 544, 270, 48, 4)
+
+    -- Желтый значок [Y]
+    love.graphics.setColor(0.96, 0.78, 0.2)
+    love.graphics.circle("fill", 80, 568, 12)
+    love.graphics.setColor(0.08, 0.03, 0.01)
+    love.graphics.setLineWidth(1.5)
+    love.graphics.circle("line", 80, 568, 12)
+    love.graphics.setLineWidth(1)
+    love.graphics.print("Y", 76, 561)
+
     love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print("BET [D-PAD ±100 / ±1K]", 70, 550)
+    love.graphics.print("BET (PRESS Y):", 100, 550)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(economy.format(slots.bet), 70, 568)
+    love.graphics.print(economy.format(slots.bet), 100, 568)
 
     love.graphics.setColor(0.12, 0.05, 0.02)
     love.graphics.rectangle("fill", 360, 544, 220, 48, 4)
@@ -353,21 +364,12 @@ function slots.draw()
 end
 
 function slots.keypressed(key)
-    if key == "up" then
-        slots.bet = slots.bet + 100
-        audio.play("click")
-    elseif key == "down" then
-        slots.bet = math.max(100, slots.bet - 100)
-        audio.play("click")
-    elseif key == "right" then
-        slots.bet = slots.bet + 1000
-        audio.play("click")
-    elseif key == "left" then
-        slots.bet = math.max(100, slots.bet - 1000)
-        audio.play("click")
-    elseif key == "y" then
-        slots.bet = economy.getBalance()
-        audio.play("coin")
+    if key == "y" then
+        if not slots.isSpinning then
+            betModal.open(slots.bet, 100, economy.getBalance(), function(newBet)
+                slots.bet = newBet
+            end)
+        end
     elseif key == "x" or key == "a" or key == "space" or key == "return" then
         slots.spin()
     end

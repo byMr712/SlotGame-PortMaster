@@ -4,13 +4,14 @@ local economy = require("src.core.economy")
 local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
 local sprites = require("src.core.sprites")
+local betModal = require("src.core.bet_modal")
 
 bj.bet = 1000
 bj.deck = {}
 bj.playerHand = {}
 bj.dealerHand = {}
 bj.gameOver = true
-bj.statusText = "PRESS [X] TO DEAL"
+bj.statusText = "PRESS [►] TO DEAL  •  [Y] SET BET"
 bj.dealAnim = 1
 
 local suits = { "spade", "heart", "diamond", "club" }
@@ -84,7 +85,7 @@ function bj.deal()
     bj.playerHand = { p1, p2 }
     bj.dealerHand = { d1, d2 }
 
-    bj.statusText = "[A] HIT  •  [B] STAND  •  [Y] DOUBLE"
+    bj.statusText = "[▲] HIT  •  [▼] STAND  •  [◄] DOUBLE"
 
     if bj.calculateScore(bj.playerHand) == 21 then
         bj.stand()
@@ -273,23 +274,32 @@ function bj.draw()
     love.graphics.setColor(0.22, 0.1, 0.04)
     love.graphics.rectangle("fill", 40, 560, 944, 60, 4)
 
-    -- Панель ставки (D-Pad)
+    -- Панель ставки [Y]
     love.graphics.setColor(0.12, 0.05, 0.02)
-    love.graphics.rectangle("fill", 55, 566, 280, 48, 4)
-    love.graphics.setColor(0.65, 0.45, 0.15)
-    love.graphics.rectangle("line", 55, 566, 280, 48, 4)
+    love.graphics.rectangle("fill", 55, 566, 260, 48, 4)
+    love.graphics.setColor(0.78, 0.52, 0.12)
+    love.graphics.rectangle("line", 55, 566, 260, 48, 4)
+
+    -- Желтый значок [Y]
+    love.graphics.setColor(0.96, 0.78, 0.2)
+    love.graphics.circle("fill", 76, 590, 12)
+    love.graphics.setColor(0.08, 0.03, 0.01)
+    love.graphics.setLineWidth(1.5)
+    love.graphics.circle("line", 76, 590, 12)
+    love.graphics.setLineWidth(1)
+    love.graphics.print("Y", 72, 583)
 
     love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print("BET [D-PAD ±100 / ±1K]", 65, 572)
+    love.graphics.print("BET (PRESS Y):", 96, 574)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(economy.format(bj.bet), 65, 590)
+    love.graphics.print(economy.format(bj.bet), 96, 590)
 
     if not bj.gameOver then
         love.graphics.setColor(0.6, 0.5, 0.4)
-        love.graphics.print("(LOCKED)", 180, 590)
+        love.graphics.print("(LOCKED)", 205, 590)
     end
 
-    local function drawGameBtn(bx, by, bw, bh, bCol, keyCol, keyChar, label)
+    local function drawGameBtn(bx, by, bw, bh, bCol, keyCol, dir, label)
         -- Темная тень
         love.graphics.setColor(0.08, 0.03, 0.01)
         love.graphics.rectangle("fill", bx, by, bw, bh, 4)
@@ -300,7 +310,7 @@ function bj.draw()
         love.graphics.setColor(bCol[1] * 1.35, bCol[2] * 1.35, bCol[3] * 1.35)
         love.graphics.rectangle("line", bx + 2, by + 2, bw - 4, bh - 4, 3)
 
-        -- Круглая кнопка геймпада
+        -- Круглая кнопка направления D-Pad
         local cx = bx + 18
         local cy = by + bh / 2
         love.graphics.setColor(keyCol[1], keyCol[2], keyCol[3])
@@ -309,42 +319,49 @@ function bj.draw()
         love.graphics.setLineWidth(1.5)
         love.graphics.circle("line", cx, cy, 11)
         love.graphics.setLineWidth(1)
-        love.graphics.print(keyChar, cx - 4, cy - 7)
+
+        -- Стрелка D-Pad
+        love.graphics.setColor(0.08, 0.03, 0.01)
+        if dir == "up" then
+            love.graphics.polygon("fill", cx, cy - 5, cx - 4, cy + 3, cx + 4, cy + 3)
+        elseif dir == "down" then
+            love.graphics.polygon("fill", cx, cy + 5, cx - 4, cy - 3, cx + 4, cy - 3)
+        elseif dir == "left" then
+            love.graphics.polygon("fill", cx - 5, cy, cx + 3, cy - 4, cx + 3, cy + 4)
+        elseif dir == "right" then
+            love.graphics.polygon("fill", cx + 5, cy, cx - 3, cy - 4, cx - 3, cy + 4)
+        end
 
         -- Текст действия
         love.graphics.setColor(1, 1, 1)
         love.graphics.print(label, bx + 36, cy - 7)
     end
 
-    drawGameBtn(365, 570, 135, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", "HIT")
-    drawGameBtn(515, 570, 140, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "B", "STAND")
-    drawGameBtn(670, 570, 145, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "Y", "DOUBLE")
-    drawGameBtn(830, 570, 135, 40, {0.68, 0.32, 0.1}, {0.32, 0.62, 0.96}, "X", "DEAL")
+    drawGameBtn(345, 570, 140, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "up", "HIT")
+    drawGameBtn(505, 570, 145, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "down", "STAND")
+    drawGameBtn(670, 570, 150, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "left", "DOUBLE")
+    drawGameBtn(840, 570, 140, 40, {0.68, 0.32, 0.1}, {0.32, 0.62, 0.96}, "right", "DEAL")
 end
 
 function bj.keypressed(key)
-    if bj.gameOver then
-        if key == "up" then
-            bj.bet = bj.bet + 100
-            audio.play("click")
-        elseif key == "down" then
-            bj.bet = math.max(100, bj.bet - 100)
-            audio.play("click")
-        elseif key == "right" then
-            bj.bet = bj.bet + 1000
-            audio.play("click")
-        elseif key == "left" then
-            bj.bet = math.max(100, bj.bet - 1000)
-            audio.play("click")
+    if key == "up" then
+        bj.hit()
+    elseif key == "down" then
+        bj.stand()
+    elseif key == "left" then
+        bj.double()
+    elseif key == "right" then
+        if bj.gameOver then bj.deal() end
+    elseif key == "y" then
+        if bj.gameOver then
+            betModal.open(bj.bet, 100, economy.getBalance(), function(newBet)
+                bj.bet = newBet
+            end)
         end
-    end
-
-    if key == "a" then
+    elseif key == "a" then
         bj.hit()
     elseif key == "b" then
         bj.stand()
-    elseif key == "y" then
-        bj.double()
     elseif key == "x" or key == "space" or key == "return" then
         if bj.gameOver then bj.deal() end
     end

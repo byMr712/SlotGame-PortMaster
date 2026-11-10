@@ -7,6 +7,7 @@ local economy = require("src.core.economy")
 local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
 local sprites = require("src.core.sprites")
+local betModal = require("src.core.bet_modal")
 
 local activeTab = 1 -- 1: Slots (Стартуем всегда со слотов!), 2: BJ, 3: Roulette, 4: Poker
 
@@ -19,6 +20,7 @@ function love.load()
 end
 
 function love.update(dt)
+    betModal.update(dt)
     if activeTab == 1 then
         slots.update(dt)
     elseif activeTab == 2 then
@@ -114,9 +116,12 @@ function love.draw()
     love.graphics.setColor(0.12, 0.05, 0.02)
     love.graphics.rectangle("fill", 24, 718, 976, 28, 4)
     love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print("[L1/R1] ROOMS  •  [D-PAD] BET/NAVIGATE  •  [A] ACTION  •  [X] SPIN/DEAL", 36, 725)
+    love.graphics.print("[L1/R1] ROOMS  •  [Y] BET SETUP  •  [D-PAD] ACTIONS  •  [A/X] CONFIRM", 36, 725)
     love.graphics.setColor(1, 0.88, 0.4)
     love.graphics.print("TRIMUI BRICK EDITION", 800, 725)
+
+    -- 5. Модальное окно точной настройки ставки
+    betModal.draw()
 end
 
 local function handleGlobalInput(action)
@@ -140,6 +145,12 @@ local function handleGlobalInput(action)
 end
 
 function love.keypressed(key)
+    -- Если открыто окно ставки, весь ввод идет в него
+    if betModal.active then
+        betModal.keypressed(key)
+        return
+    end
+
     if key == "q" or key == "[" then
         handleGlobalInput("prev_tab")
     elseif key == "e" or key == "]" then
