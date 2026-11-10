@@ -116,6 +116,7 @@ function poker.drawOrDeal()
             table.insert(poker.hand, c)
         end
         poker.holds = { false, false, false, false, false }
+        poker.focusCard = 1
         poker.phase = "draw"
         poker.comboText = "SELECT CARDS TO HOLD"
     else
@@ -257,7 +258,7 @@ function poker.draw()
             local oldFont = love.graphics.getFont()
             local cFont = getCardFont()
             if cFont then love.graphics.setFont(cFont) end
-            local lbl = string.format("[%d]", i)
+            local lbl = "CARD " .. i
             local lw = love.graphics.getFont():getWidth(lbl)
             love.graphics.print(lbl, x + (cw - lw) / 2, startY + 100)
             love.graphics.setFont(oldFont)
@@ -338,13 +339,16 @@ function poker.draw()
         love.graphics.print(label, bx + 36, cy - 7)
     end
 
-    drawGameBtn(580, 570, 160, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", "HOLD/UNHOLD")
     local drawLabel = (poker.phase == "draw") and "DRAW" or "DEAL"
-    drawGameBtn(760, 570, 150, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "X", drawLabel)
+    drawGameBtn(740, 570, 220, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "X", drawLabel)
 end
 
 function poker.keypressed(key)
     if key == "y" then
+        if poker.phase == "draw" then
+            audio.play("fail")
+            return
+        end
         betModal.open(poker.bet, 100, economy.getBalance(), function(newBet)
             poker.bet = newBet
         end)
@@ -393,16 +397,8 @@ function poker.mousepressed(x, y)
         end
     end
 
-    -- Кнопки действий:
-    -- HOLD / UNHOLD (A): 580, 570, 160, 40
-    if x >= 580 and x <= 740 and y >= 570 and y <= 610 then
-        if poker.phase == "draw" then
-            poker.holds[poker.focusCard] = not poker.holds[poker.focusCard]
-            audio.play("click")
-        end
-        return true
-    -- DRAW / DEAL (X): 760, 570, 150, 40
-    elseif x >= 760 and x <= 910 and y >= 570 and y <= 610 then
+    -- Кнопка DRAW / DEAL (X): 740, 570, 220, 40
+    if x >= 740 and x <= 960 and y >= 570 and y <= 610 then
         poker.drawOrDeal()
         return true
     end
