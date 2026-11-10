@@ -69,6 +69,28 @@ function bj.calculateScore(hand)
         score = score + c.val
         if c.name == "A" then aces = aces + 1 end
     end
+
+    -- Если у руки в процессе добора уже было ровно 21, туз не должен откатываться с 11 до 1:
+    if #hand > 2 then
+        for len = 2, #hand - 1 do
+            local subScore = 0
+            local subAces = 0
+            for i = 1, len do
+                subScore = subScore + hand[i].val
+                if hand[i].name == "A" then subAces = subAces + 1 end
+            end
+            while subScore > 21 and subAces > 0 do
+                subScore = subScore - 10
+                subAces = subAces - 1
+            end
+            if subScore == 21 then
+                local added = 0
+                for i = len + 1, #hand do added = added + hand[i].val end
+                return 21 + added
+            end
+        end
+    end
+
     while score > 21 and aces > 0 do
         score = score - 10
         aces = aces - 1
@@ -128,16 +150,10 @@ function bj.deal()
     end
 
     bj.statusText = ""
-
-    -- При 21 со старта (натуральный Блэкджек) - автоматическое завершение раунда, добирать нельзя
-    if bj.calculateScore(bj.playerHand) == 21 then
-        bj.stand()
-    end
 end
 
 function bj.hit()
     if bj.gameOver then return end
-    if bj.calculateScore(bj.playerHand) >= 21 then return end
     bj.hasHit = true
     audio.play("click")
     local c = table.remove(bj.deck)
@@ -145,9 +161,7 @@ function bj.hit()
     table.insert(bj.playerHand, c)
 
     local score = bj.calculateScore(bj.playerHand)
-    if score == 21 then
-        bj.stand()
-    elseif score > 21 then
+    if score > 21 then
         bj.gameOver = true
         bj.statusText = i18n.t("bust")
         audio.play("fail")
@@ -200,7 +214,7 @@ function bj.stand()
 end
 
 function bj.double()
-    if bj.gameOver or #bj.playerHand ~= 2 or not economy.canAfford(bj.bet) or bj.calculateScore(bj.playerHand) >= 21 then return end
+    if bj.gameOver or #bj.playerHand ~= 2 or not economy.canAfford(bj.bet) then return end
     economy.spend(bj.bet)
     bj.bet = bj.bet * 2
     bj.hit()
