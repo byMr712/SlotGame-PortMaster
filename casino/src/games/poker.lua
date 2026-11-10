@@ -159,9 +159,16 @@ local function drawCard(c, x, y, held, focused)
     love.graphics.rectangle("fill", x + 3, y + 3, cw - 6, ch - 6, 4)
 
     if focused then
-        love.graphics.setColor(1, 0.88, 0.2)
-        love.graphics.setLineWidth(4)
-        love.graphics.rectangle("line", x - 3, y - 3, cw + 6, ch + 6, 6)
+        -- Яркая золотая рамка фокуса карты с мягким ореолом
+        love.graphics.setColor(1, 0.85, 0.15, 0.4)
+        love.graphics.setLineWidth(6)
+        love.graphics.rectangle("line", x - 4, y - 4, cw + 8, ch + 8, 8)
+        love.graphics.setColor(1, 0.90, 0.3)
+        love.graphics.setLineWidth(3)
+        love.graphics.rectangle("line", x - 3, y - 3, cw + 6, ch + 6, 7)
+        love.graphics.setColor(1, 1, 0.8)
+        love.graphics.setLineWidth(1)
+        love.graphics.rectangle("line", x - 2, y - 2, cw + 4, ch + 4, 6)
         love.graphics.setLineWidth(1)
     end
 
@@ -271,7 +278,7 @@ function poker.draw()
                 local p = math.min(1, anim)
                 local ease = 1 - math.pow(1 - p, 3)
                 local yOff = (1 - ease) * -65
-                drawCard(c, x, startY + yOff, poker.holds[i], i == poker.focusCard)
+                drawCard(c, x, startY + yOff, poker.holds[i], (poker.phase == "draw" and i == (poker.focusCard or 1)))
             end
         end
     end
