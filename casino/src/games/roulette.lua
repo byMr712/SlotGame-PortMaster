@@ -543,25 +543,25 @@ end
 function roulette.draw()
     local font = love.graphics.getFont()
 
-    -- 1. Верхняя латунная плашка истории (расширена вниз, высота 54px, без подсказок справа)
+    -- 1. Верхняя латунная плашка истории (высота 52px, внутри сукна, без подсказок справа)
     love.graphics.setColor(0.18, 0.08, 0.03)
-    love.graphics.rectangle("fill", 40, 74, 944, 54, 4)
+    love.graphics.rectangle("fill", 40, 86, 944, 52, 4)
     love.graphics.setColor(0.78, 0.52, 0.12)
     love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", 40, 74, 944, 54, 4)
+    love.graphics.rectangle("line", 40, 86, 944, 52, 4)
     love.graphics.setLineWidth(1)
 
     -- Подпись HISTORY: (золотой фирменный шрифт в стиле остальных залов)
     local histLabel = i18n.t("history") .. ":"
     local htw = font and font:getWidth(histLabel) or (#histLabel * 8)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(histLabel, 54, 92, 0, 1.15, 1.15)
+    love.graphics.print(histLabel, 54, 100, 0, 1.15, 1.15)
 
     -- Увеличенные значки выпавших цифр
     local badgeStartX = 54 + htw * 1.15 + 14
     local badgeW = 38
     local badgeH = 36
-    local badgeY = 83
+    local badgeY = 92
 
     for i, item in ipairs(roulette.history) do
         if i > 8 then break end
@@ -598,7 +598,7 @@ function roulette.draw()
     if roulette.statusText ~= "" then
         local stw = font and font:getWidth(roulette.statusText) or (#roulette.statusText * 8)
         love.graphics.setColor(1, 0.88, 0.4)
-        love.graphics.print(roulette.statusText, 960 - stw, 92)
+        love.graphics.print(roulette.statusText, 960 - stw, 100)
     end
 
     -- Расчет плавного зума и центровки на всё свободное пространство экрана

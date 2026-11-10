@@ -55,23 +55,25 @@ function love.draw()
     love.graphics.setLineWidth(1)
 
     -- Сукно зала
+    local feltY = 82
+    local feltH = 632
     love.graphics.setColor(0.05, 0.18, 0.1)
-    love.graphics.rectangle("fill", 24, 68, 976, 646, 6)
+    love.graphics.rectangle("fill", 24, feltY, 976, feltH, 6)
     love.graphics.setColor(0.08, 0.28, 0.15)
     love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", 24, 68, 976, 646, 6)
+    love.graphics.rectangle("line", 24, feltY, 976, feltH, 6)
     love.graphics.setLineWidth(1)
 
-    -- 2. Верхняя панель: Вкладки L1/R1 + Баланс (два широких окна по центру)
+    -- 2. Верхняя панель: Вкладки L1/R1 + Баланс (два широких и высоких окна по центру)
     love.graphics.setColor(0.12, 0.05, 0.02)
-    love.graphics.rectangle("fill", 24, 16, 976, 46, 4)
+    love.graphics.rectangle("fill", 24, 18, 976, 62, 4)
 
-    -- Вкладка залов (широкое окно слева от центра: 465x38 на x=34)
+    -- Вкладка залов (широкое окно слева от центра: 465x50 на x=34, y=24)
     local roomNames = { i18n.t("tab_slots"), i18n.t("tab_bj"), i18n.t("tab_roulette"), i18n.t("tab_poker") }
     local leftX = 34
-    local winY = 20
+    local winY = 24
     local winW = 465
-    local winH = 38
+    local winH = 50
 
     love.graphics.setColor(0.18, 0.08, 0.03)
     love.graphics.rectangle("fill", leftX, winY, winW, winH, 4)
@@ -80,40 +82,44 @@ function love.draw()
     love.graphics.rectangle("line", leftX, winY, winW, winH, 4)
     love.graphics.setLineWidth(1)
 
-    local btnW = 56
-    local btnH = 28
-    local btnY = 25
+    local btnW = 66
+    local btnH = 38
+    local btnY = winY + (winH - btnH) / 2
 
     -- Кнопка L1
     love.graphics.setColor(0.08, 0.03, 0.01)
-    love.graphics.rectangle("fill", leftX + 6, btnY, btnW, btnH, 3)
+    love.graphics.rectangle("fill", leftX + 7, btnY, btnW, btnH, 3)
     love.graphics.setColor(0.68, 0.32, 0.1)
-    love.graphics.rectangle("fill", leftX + 7, btnY + 1, btnW - 2, btnH - 2, 2)
+    love.graphics.rectangle("fill", leftX + 8, btnY + 1, btnW - 2, btnH - 2, 2)
     love.graphics.setColor(0.9, 0.5, 0.2)
-    love.graphics.rectangle("line", leftX + 7, btnY + 1, btnW - 2, btnH - 2, 2)
+    love.graphics.rectangle("line", leftX + 8, btnY + 1, btnW - 2, btnH - 2, 2)
 
     local font = love.graphics.getFont()
+    local fontH = font and font:getHeight() or 12
     love.graphics.setColor(1, 0.95, 0.7)
     local l1Str = "L1"
-    local l1w = (font and font:getWidth(l1Str) or 16) * 1.3
-    love.graphics.print(l1Str, leftX + 6 + btnW / 2 - l1w / 2, btnY + 4, 0, 1.3, 1.3)
+    local l1w = (font and font:getWidth(l1Str) or 16) * 1.5
+    local l1h = fontH * 1.5
+    love.graphics.print(l1Str, leftX + 7 + btnW / 2 - l1w / 2, btnY + btnH / 2 - l1h / 2, 0, 1.5, 1.5)
 
     -- Название текущего зала со стрелками ◄   НАЗВАНИЕ   ► (по центру между кнопками)
     local innerCenter = 267
     local curRoom = roomNames[activeTab]
-    local tw = (font and font:getWidth(curRoom) or (#curRoom * 8)) * 1.3
+    local tw = (font and font:getWidth(curRoom) or (#curRoom * 8)) * 1.55
+    local th = fontH * 1.55
+    local roomTextY = winY + winH / 2 - th / 2
 
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print("◄", innerCenter - tw / 2 - 28, 29, 0, 1.25, 1.25)
+    love.graphics.print("◄", innerCenter - tw / 2 - 34, roomTextY, 0, 1.45, 1.45)
 
     love.graphics.setColor(1, 1, 1)
-    love.graphics.print(curRoom, innerCenter - tw / 2, 29, 0, 1.3, 1.3)
+    love.graphics.print(curRoom, innerCenter - tw / 2, roomTextY, 0, 1.55, 1.55)
 
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print("►", innerCenter + tw / 2 + 14, 29, 0, 1.25, 1.25)
+    love.graphics.print("►", innerCenter + tw / 2 + 16, roomTextY, 0, 1.45, 1.45)
 
     -- Кнопка R1
-    local r1X = leftX + winW - btnW - 6
+    local r1X = leftX + winW - btnW - 7
     love.graphics.setColor(0.08, 0.03, 0.01)
     love.graphics.rectangle("fill", r1X, btnY, btnW, btnH, 3)
     love.graphics.setColor(0.68, 0.32, 0.1)
@@ -123,14 +129,15 @@ function love.draw()
 
     love.graphics.setColor(1, 0.95, 0.7)
     local r1Str = "R1"
-    local r1w = (font and font:getWidth(r1Str) or 16) * 1.3
-    love.graphics.print(r1Str, r1X + btnW / 2 - r1w / 2, btnY + 4, 0, 1.3, 1.3)
+    local r1w = (font and font:getWidth(r1Str) or 16) * 1.5
+    local r1h = fontH * 1.5
+    love.graphics.print(r1Str, r1X + btnW / 2 - r1w / 2, btnY + btnH / 2 - r1h / 2, 0, 1.5, 1.5)
 
-    -- Окно баланса (широкое окно справа от центра: 465x38 на x=525)
+    -- Окно баланса (широкое окно справа от центра: 465x50 на x=525, y=24)
     local balX = 525
-    local balY = 20
+    local balY = winY
     local balW = 465
-    local balH = 38
+    local balH = winH
 
     love.graphics.setColor(0.18, 0.08, 0.03)
     love.graphics.rectangle("fill", balX, balY, balW, balH, 4)
@@ -141,14 +148,15 @@ function love.draw()
 
     -- Монетка и сумма баланса крупно по центру окна
     local balStr = economy.getBalanceFormatted()
-    local btw = (font and font:getWidth(balStr) or (#balStr * 8)) * 1.35
-    local coinSize = 24
-    local totalContentW = coinSize + 12 + btw
+    local btw = (font and font:getWidth(balStr) or (#balStr * 8)) * 1.6
+    local bth = fontH * 1.6
+    local coinSize = 32
+    local totalContentW = coinSize + 14 + btw
     local contentStartX = balX + (balW - totalContentW) / 2
 
     sprites.draw("coin", contentStartX + coinSize / 2, balY + balH / 2, coinSize)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(balStr, contentStartX + coinSize + 12, balY + 8, 0, 1.35, 1.35)
+    love.graphics.print(balStr, contentStartX + coinSize + 14, balY + balH / 2 - bth / 2, 0, 1.6, 1.6)
 
     -- 3. Отрисовка активной комнаты
     if activeTab == 1 then
@@ -275,7 +283,7 @@ function love.mousepressed(x, y, button)
     end
 
     -- 2. Верхняя панель: Переключение залов и баланс
-    if y >= 16 and y <= 62 then
+    if y >= 18 and y <= 80 then
         if x >= 34 and x <= 499 then
             if x <= 267 then
                 handleGlobalInput("prev_tab")

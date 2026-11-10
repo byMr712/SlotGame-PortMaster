@@ -202,12 +202,12 @@ end
 function poker.draw()
     local font = love.graphics.getFont()
 
-    -- Таблица комбинаций сверху (расширена вниз, высота 58px, увеличенный шрифт в латунных ячейках)
+    -- Таблица комбинаций сверху (высота 52px, внутри сукна)
     love.graphics.setColor(0.18, 0.08, 0.03)
-    love.graphics.rectangle("fill", 40, 74, 944, 58, 4)
+    love.graphics.rectangle("fill", 40, 86, 944, 52, 4)
     love.graphics.setColor(0.78, 0.52, 0.12)
     love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", 40, 74, 944, 58, 4)
+    love.graphics.rectangle("line", 40, 86, 944, 52, 4)
     love.graphics.setLineWidth(1)
 
     local combos = {
@@ -222,8 +222,8 @@ function poker.draw()
     local gap = 8
     local totalW = 944 - padX * 2
     local cellW = math.floor((totalW - (#combos - 1) * gap) / #combos)
-    local cellH = 46
-    local cellY = 80
+    local cellH = 42
+    local cellY = 91
 
     for i, c in ipairs(combos) do
         local bx = 40 + padX + (i - 1) * (cellW + gap)
