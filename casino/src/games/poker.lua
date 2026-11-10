@@ -12,6 +12,7 @@ poker.holds = { false, false, false, false, false }
 poker.phase = "deal"
 poker.focusCard = 1
 poker.comboText = "PRESS [X] TO DEAL"
+poker.dealAnim = 1
 
 local suits = { "spade", "heart", "diamond", "club" }
 local values = {
@@ -81,6 +82,12 @@ function poker.evaluateHand()
     return "NO COMBINATION", 0
 end
 
+function poker.update(dt)
+    if poker.dealAnim < 1 then
+        poker.dealAnim = math.min(1, poker.dealAnim + dt * 4.0)
+    end
+end
+
 function poker.drawOrDeal()
     if poker.phase == "deal" then
         if not economy.spend(poker.bet) then
@@ -90,12 +97,14 @@ function poker.drawOrDeal()
 
         audio.play("click")
         poker.initDeck()
+        poker.dealAnim = 0
         poker.hand = { table.remove(poker.deck), table.remove(poker.deck), table.remove(poker.deck), table.remove(poker.deck), table.remove(poker.deck) }
         poker.holds = { false, false, false, false, false }
         poker.phase = "draw"
         poker.comboText = "SELECT CARDS TO HOLD • [X] DRAW"
     else
         audio.play("click")
+        poker.dealAnim = 0.3
         for i = 1, 5 do
             if not poker.holds[i] then
                 poker.hand[i] = table.remove(poker.deck)
@@ -152,12 +161,31 @@ function poker.draw()
     love.graphics.setColor(1, 0.88, 0.4)
     love.graphics.print("ROYAL x800 • STR FLUSH x50 • 4-KIND x25 • FULL HOUSE x9 • FLUSH x6 • JACKS+ x1", 60, 92)
 
-    -- 5 карт
+    -- 5 карт (по умолчанию стол пуст, при раздаче карты анимируются)
     local startX = 140
     local startY = 260
-    for i, c in ipairs(poker.hand) do
-        local x = startX + (i - 1) * 150
-        drawCard(c, x, startY, poker.holds[i], i == poker.focusCard)
+    if #poker.hand == 0 then
+        for i = 1, 5 do
+            local x = startX + (i - 1) * 150
+            love.graphics.setColor(0.12, 0.05, 0.02, 0.4)
+            love.graphics.rectangle("fill", x, startY, 100, 140, 6)
+            love.graphics.setColor(0.55, 0.26, 0.08, 0.45)
+            love.graphics.setLineWidth(2)
+            love.graphics.rectangle("line", x, startY, 100, 140, 6)
+            love.graphics.setLineWidth(1)
+            love.graphics.setColor(0.7, 0.5, 0.2, 0.35)
+            love.graphics.print(string.format("[%d]", i), x + 40, startY + 60)
+        end
+    else
+        for i, c in ipairs(poker.hand) do
+            local x = startX + (i - 1) * 150
+            local yOff = 0
+            if poker.dealAnim < 1 then
+                local prog = math.max(0, math.min(1, (poker.dealAnim - (i - 1) * 0.1) / 0.3))
+                yOff = (1 - math.sin(prog * math.pi * 0.5)) * -35
+            end
+            drawCard(c, x, startY + yOff, poker.holds[i], i == poker.focusCard)
+        end
     end
 
     -- Статус

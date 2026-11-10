@@ -450,10 +450,10 @@ function roulette.draw()
     love.graphics.setColor(1, 0.88, 0.4)
     love.graphics.print(roulette.statusText, 60, 92)
 
-    -- Расчет плавного зума и центровки
-    local cx = 180 + roulette.zoom * (512 - 180)
-    local cy = 340 + roulette.zoom * (390 - 340)
-    local r = 130 + roulette.zoom * (220 - 130)
+    -- Расчет плавного зума и центровки на всё свободное пространство экрана
+    local cx = 175 + roulette.zoom * (512 - 175)
+    local cy = 375 + roulette.zoom * (405 - 375)
+    local r = 145 + roulette.zoom * (275 - 145)
 
     -- Внешняя чаша из красного дерева с латунным ободом
     love.graphics.setColor(0.18, 0.08, 0.03)

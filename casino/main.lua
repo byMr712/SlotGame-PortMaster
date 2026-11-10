@@ -21,8 +21,12 @@ end
 function love.update(dt)
     if activeTab == 1 then
         slots.update(dt)
+    elseif activeTab == 2 then
+        bj.update(dt)
     elseif activeTab == 3 then
         roulette.update(dt)
+    elseif activeTab == 4 then
+        poker.update(dt)
     end
 end
 
@@ -50,23 +54,35 @@ function love.draw()
     love.graphics.setColor(0.12, 0.05, 0.02)
     love.graphics.rectangle("fill", 24, 18, 976, 44, 4)
 
-    -- Вкладки
-    local tabsList = { "[1] SLOTS", "[2] BLACKJACK", "[3] ROULETTE", "[4] POKER" }
+    -- Вкладка залов в одну ячейку: меняется по L1 / R1, без цифр
+    local roomNames = { "SLOTS", "BLACKJACK", "ROULETTE", "POKER" }
+    love.graphics.setColor(0.18, 0.08, 0.03)
+    love.graphics.rectangle("fill", 30, 24, 340, 32, 4)
+    love.graphics.setColor(0.55, 0.26, 0.08)
+    love.graphics.rectangle("line", 30, 24, 340, 32, 4)
+
+    -- Кнопка [L1] ◄
+    love.graphics.setColor(0.24, 0.1, 0.03)
+    love.graphics.rectangle("fill", 34, 27, 60, 26, 3)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print("[L1] ◄", 36, 32)
-    for i, tName in ipairs(tabsList) do
-        local tx = 110 + (i - 1) * 125
-        if i == activeTab then
-            love.graphics.setColor(0.77, 0.39, 0.11)
-            love.graphics.rectangle("fill", tx - 4, 24, 118, 30, 3)
-            love.graphics.setColor(1, 1, 1)
-        else
-            love.graphics.setColor(0.85, 0.75, 0.55)
-        end
-        love.graphics.print(tName, tx, 32)
-    end
+    love.graphics.print("[L1] ◄", 40, 33)
+
+    -- Название текущего зала в одной центральной ячейке
+    love.graphics.setColor(0.77, 0.39, 0.11)
+    love.graphics.rectangle("fill", 100, 27, 180, 26, 3)
+    love.graphics.setColor(0.78, 0.52, 0.12)
+    love.graphics.rectangle("line", 100, 27, 180, 26, 3)
+    love.graphics.setColor(1, 1, 1)
+    local curRoom = roomNames[activeTab]
+    local font = love.graphics.getFont()
+    local tw = font and font:getWidth(curRoom) or (#curRoom * 8)
+    love.graphics.print(curRoom, 100 + (180 - tw) / 2, 33)
+
+    -- Кнопка ► [R1]
+    love.graphics.setColor(0.24, 0.1, 0.03)
+    love.graphics.rectangle("fill", 286, 27, 80, 26, 3)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print("► [R1]", 616, 32)
+    love.graphics.print("► [R1]", 294, 33)
 
     -- Баланс
     love.graphics.setColor(0.22, 0.1, 0.04)
