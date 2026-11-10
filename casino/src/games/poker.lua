@@ -213,7 +213,7 @@ function poker.draw()
     love.graphics.rectangle("line", 55, 566, 280, 48, 4)
 
     love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print("BET [▲/▼ ±100, ◄/► ±1K]", 65, 572)
+    love.graphics.print("BET [D-PAD ±100 / ±1K]", 65, 572)
     love.graphics.setColor(1, 0.88, 0.4)
     love.graphics.print(economy.format(poker.bet), 65, 590)
 

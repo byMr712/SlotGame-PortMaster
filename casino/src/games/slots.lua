@@ -304,7 +304,7 @@ function slots.draw()
     love.graphics.setColor(0.65, 0.45, 0.15)
     love.graphics.rectangle("line", 60, 544, 270, 48, 4)
     love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print("BET [▲/▼ ±100, ◄/► ±1K]", 70, 550)
+    love.graphics.print("BET [D-PAD ±100 / ±1K]", 70, 550)
     love.graphics.setColor(1, 0.88, 0.4)
     love.graphics.print(economy.format(slots.bet), 70, 568)
 
