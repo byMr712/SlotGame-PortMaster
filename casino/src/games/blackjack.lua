@@ -234,17 +234,34 @@ local function drawCard(c, x, y, hidden)
 end
 
 function bj.draw()
-    -- Карты дилера
+    local font = love.graphics.getFont()
+    local cw = 148
+    local gap = 16
+
+    local numDealer = math.max(2, #bj.dealerHand)
+    local dTotalW = numDealer * cw + (numDealer - 1) * gap
+    local dStartX = math.floor((1024 - dTotalW) / 2)
+
+    local numPlayer = math.max(2, #bj.playerHand)
+    local pTotalW = numPlayer * cw + (numPlayer - 1) * gap
+    local pStartX = math.floor((1024 - pTotalW) / 2)
+
+    local dealerCardsY = 105
+    local playerCardsY = 345
+
+    -- 1. Подпись и карты дилера
     love.graphics.setColor(1, 0.88, 0.4)
     local dScore = "--"
     if #bj.dealerHand > 0 then
         dScore = bj.gameOver and tostring(bj.calculateScore(bj.dealerHand)) or (bj.dealerHand[1] and tostring(bj.dealerHand[1].val) or "??")
     end
-    love.graphics.print(string.format("%s: %s", i18n.t("dealer_gus"), dScore), 60, 80)
+    local dStr = string.format("%s: %s", i18n.t("dealer_gus"), dScore)
+    local dtw = font and font:getWidth(dStr) or (#dStr * 8)
+    love.graphics.print(dStr, 512 - dtw / 2, dealerCardsY - 24)
 
     if #bj.dealerHand == 0 then
-        drawEmptyCardSlot(60, 105, "CARD 1")
-        drawEmptyCardSlot(220, 105, "CARD 2")
+        drawEmptyCardSlot(dStartX, dealerCardsY, "CARD 1")
+        drawEmptyCardSlot(dStartX + cw + gap, dealerCardsY, "CARD 2")
     else
         for i, c in ipairs(bj.dealerHand) do
             local anim = c.anim or 1
@@ -253,35 +270,36 @@ function bj.draw()
                 local ease = 1 - math.pow(1 - p, 3)
                 local yOff = (1 - ease) * -65
                 local xOff = (1 - ease) * 35
-                drawCard(c, 60 + (i - 1) * 160 + xOff, 105 + yOff, (i == 2 and not bj.gameOver))
+                drawCard(c, dStartX + (i - 1) * (cw + gap) + xOff, dealerCardsY + yOff, (i == 2 and not bj.gameOver))
             end
         end
     end
 
-    -- Результат раздачи (появляется только после завершения руки, без подсказок кнопок)
+    -- 2. Результат раздачи (появляется только после завершения руки)
     if bj.gameOver and #bj.playerHand > 0 and bj.statusText ~= "" then
         love.graphics.setColor(0.18, 0.08, 0.03, 0.95)
-        local font = love.graphics.getFont()
         local tw = font and font:getWidth(bj.statusText) or (#bj.statusText * 8)
         local pw = math.max(260, tw + 48)
         local px = 512 - pw / 2
-        love.graphics.rectangle("fill", px, 320, pw, 38, 6)
+        love.graphics.rectangle("fill", px, 316, pw, 26, 5)
         love.graphics.setColor(0.78, 0.52, 0.12)
         love.graphics.setLineWidth(2)
-        love.graphics.rectangle("line", px, 320, pw, 38, 6)
+        love.graphics.rectangle("line", px, 316, pw, 26, 5)
         love.graphics.setLineWidth(1)
         love.graphics.setColor(1, 0.88, 0.4)
-        love.graphics.print(bj.statusText, 512 - tw / 2, 332)
+        love.graphics.print(bj.statusText, 512 - tw / 2, 321)
     end
 
-    -- Карты игрока
+    -- 3. Подпись и карты игрока
     love.graphics.setColor(1, 0.88, 0.4)
     local pScore = #bj.playerHand > 0 and tostring(bj.calculateScore(bj.playerHand)) or "--"
-    love.graphics.print(string.format("%s: %s", i18n.t("player"), pScore), 60, 325)
+    local pStr = string.format("%s: %s", i18n.t("player"), pScore)
+    local ptw = font and font:getWidth(pStr) or (#pStr * 8)
+    love.graphics.print(pStr, 512 - ptw / 2, playerCardsY - 24)
 
     if #bj.playerHand == 0 then
-        drawEmptyCardSlot(60, 345, "CARD 1")
-        drawEmptyCardSlot(220, 345, "CARD 2")
+        drawEmptyCardSlot(pStartX, playerCardsY, "CARD 1")
+        drawEmptyCardSlot(pStartX + cw + gap, playerCardsY, "CARD 2")
     else
         for i, c in ipairs(bj.playerHand) do
             local anim = c.anim or 1
@@ -290,7 +308,7 @@ function bj.draw()
                 local ease = 1 - math.pow(1 - p, 3)
                 local yOff = (1 - ease) * -65
                 local xOff = (1 - ease) * 35
-                drawCard(c, 60 + (i - 1) * 160 + xOff, 345 + yOff, false)
+                drawCard(c, pStartX + (i - 1) * (cw + gap) + xOff, playerCardsY + yOff, false)
             end
         end
     end
