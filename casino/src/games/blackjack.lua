@@ -253,10 +253,37 @@ function bj.draw()
     love.graphics.setColor(1, 0.88, 0.4)
     love.graphics.print(string.format("%s: %s", i18n.t("bet"), economy.format(bj.bet)), 60, 580)
 
-    love.graphics.print("[A] HIT", 380, 580)
-    love.graphics.print("[B] STAND", 540, 580)
-    love.graphics.print("[Y] DOUBLE", 700, 580)
-    love.graphics.print("[X] DEAL", 860, 580)
+    local function drawGameBtn(bx, by, bw, bh, bCol, keyCol, keyChar, label)
+        -- Темная тень
+        love.graphics.setColor(0.08, 0.03, 0.01)
+        love.graphics.rectangle("fill", bx, by, bw, bh, 4)
+        -- Корпус
+        love.graphics.setColor(bCol[1], bCol[2], bCol[3])
+        love.graphics.rectangle("fill", bx + 2, by + 2, bw - 4, bh - 4, 3)
+        -- Фаска сверху
+        love.graphics.setColor(bCol[1] * 1.35, bCol[2] * 1.35, bCol[3] * 1.35)
+        love.graphics.rectangle("line", bx + 2, by + 2, bw - 4, bh - 4, 3)
+
+        -- Круглая кнопка геймпада
+        local cx = bx + 18
+        local cy = by + bh / 2
+        love.graphics.setColor(keyCol[1], keyCol[2], keyCol[3])
+        love.graphics.circle("fill", cx, cy, 11)
+        love.graphics.setColor(0.08, 0.03, 0.01)
+        love.graphics.setLineWidth(1.5)
+        love.graphics.circle("line", cx, cy, 11)
+        love.graphics.setLineWidth(1)
+        love.graphics.print(keyChar, cx - 4, cy - 7)
+
+        -- Текст действия
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.print(label, bx + 36, cy - 7)
+    end
+
+    drawGameBtn(360, 570, 135, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", "HIT")
+    drawGameBtn(510, 570, 145, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "B", "STAND")
+    drawGameBtn(670, 570, 150, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "Y", "DOUBLE")
+    drawGameBtn(835, 570, 135, 40, {0.68, 0.32, 0.1}, {0.32, 0.62, 0.96}, "X", "DEAL")
 end
 
 function bj.keypressed(key)

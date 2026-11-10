@@ -37,7 +37,7 @@ function economy.spend(amount)
 end
 
 function economy.bailout()
-    economy.balance = economy.balance + 100000
+    economy.balance = economy.balance + 10000
 end
 
 return economy
