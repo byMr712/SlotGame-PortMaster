@@ -494,7 +494,7 @@ local function drawGrid(alpha)
     love.graphics.print("Y", 68, 583)
 
     love.graphics.setColor(0.9, 0.8, 0.55, alpha)
-    love.graphics.print("CHIP:", 92, 574)
+    love.graphics.print(i18n.t("bet") .. ":", 92, 574)
     love.graphics.setColor(1, 0.88, 0.4, alpha)
     love.graphics.print(economy.format(roulette.selectedChip), 92, 590)
 
