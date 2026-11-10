@@ -2,6 +2,7 @@ local betModal = {}
 
 local economy = require("src.core.economy")
 local audio = require("src.core.audio")
+local i18n = require("src.core.i18n")
 
 betModal.active = false
 betModal.digits = { 0, 0, 0, 1, 0, 0, 0 } -- 7 цифр: 1M, 100K, 10K, 1K, 100, 10, 1
@@ -13,10 +14,30 @@ betModal.timer = 0
 
 local digitLabels = { "1M", "100K", "10K", "1K", "100", "10", "1" }
 
+local function syncDigits(val)
+    val = math.max(0, math.floor(val or 0))
+    for i = 7, 1, -1 do
+        betModal.digits[i] = val % 10
+        val = math.floor(val / 10)
+    end
+end
+
+function betModal.clampToBalance()
+    local bal = economy.getBalance()
+    local total = betModal.getTotal()
+    if total > bal then
+        syncDigits(bal)
+    end
+end
+
 function betModal.open(currentBet, minBet, maxBet, callback)
     betModal.active = true
+    local bal = economy.getBalance()
     betModal.minBet = minBet or 100
-    betModal.maxBet = maxBet or economy.getBalance()
+    if bal < betModal.minBet and bal > 0 then
+        betModal.minBet = 1
+    end
+    betModal.maxBet = math.min(maxBet or bal, bal)
     if betModal.maxBet < betModal.minBet then
         betModal.maxBet = betModal.minBet
     end
@@ -24,10 +45,13 @@ function betModal.open(currentBet, minBet, maxBet, callback)
     betModal.timer = 0
 
     local val = math.max(0, math.floor(currentBet or 100))
-    for i = 7, 1, -1 do
-        betModal.digits[i] = val % 10
-        val = math.floor(val / 10)
+    if val > betModal.maxBet then
+        val = betModal.maxBet
     end
+    if val < betModal.minBet and bal >= betModal.minBet then
+        val = betModal.minBet
+    end
+    syncDigits(val)
 
     -- Ставим курсор на первую значащую цифру в самом начале числа ставки
     betModal.cursor = 5 -- по умолчанию сотни, если 0
@@ -55,7 +79,13 @@ end
 
 function betModal.confirm()
     local total = betModal.getTotal()
-    total = math.max(betModal.minBet, math.min(betModal.maxBet, total))
+    local bal = economy.getBalance()
+    total = math.min(total, bal)
+    if bal >= betModal.minBet then
+        total = math.max(betModal.minBet, total)
+    else
+        total = math.max(1, total)
+    end
     audio.play("coin")
     betModal.active = false
     if betModal.callback then
@@ -92,6 +122,7 @@ function betModal.mousepressed(x, y)
                 -- Стрелка вверх
                 betModal.cursor = i
                 betModal.digits[i] = (betModal.digits[i] + 1) % 10
+                betModal.clampToBalance()
                 audio.play("click")
                 return true
             elseif y >= startY and y <= startY + cellH then
@@ -103,6 +134,7 @@ function betModal.mousepressed(x, y)
                 -- Стрелка вниз
                 betModal.cursor = i
                 betModal.digits[i] = (betModal.digits[i] + 9) % 10
+                betModal.clampToBalance()
                 audio.play("click")
                 return true
             end
@@ -137,10 +169,12 @@ function betModal.keypressed(key)
         return true
     elseif key == "up" then
         betModal.digits[betModal.cursor] = (betModal.digits[betModal.cursor] + 1) % 10
+        betModal.clampToBalance()
         audio.play("click")
         return true
     elseif key == "down" then
         betModal.digits[betModal.cursor] = (betModal.digits[betModal.cursor] + 9) % 10
+        betModal.clampToBalance()
         audio.play("click")
         return true
     elseif key == "a" or key == "return" or key == "space" or key == "y" then
@@ -190,12 +224,11 @@ function betModal.draw()
     local tw = font and font:getWidth(title) or (#title * 8)
     love.graphics.print(title, mx + mw / 2 - tw / 2, my + 24)
 
-    -- Текущая собранная сумма
-    local curTotal = betModal.getTotal()
-    local totalStr = string.format("BET: %s", economy.format(curTotal))
-    local stw = font and font:getWidth(totalStr) or (#totalStr * 8)
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.print(totalStr, mx + mw / 2 - stw / 2, my + 54)
+    -- Баланс игрока (вместо Total Bet)
+    local balStr = string.format("%s: %s", i18n.t("balance"), economy.getBalanceFormatted())
+    local stw = font and font:getWidth(balStr) or (#balStr * 8)
+    love.graphics.setColor(1, 0.88, 0.4)
+    love.graphics.print(balStr, mx + mw / 2 - stw / 2, my + 54)
 
     -- 7 ячеек для цифр
     local cellW = 54
@@ -255,9 +288,10 @@ function betModal.draw()
         love.graphics.print(lbl, cx + cellW / 2 - lw / 2, cy + cellH + 20)
     end
 
-    -- Лимиты
-    love.graphics.setColor(0.85, 0.72, 0.45)
-    local limStr = string.format("MIN: %s   •   MAX: %s (BALANCE)", economy.format(betModal.minBet), economy.format(betModal.maxBet))
+    -- Текущая ставка и лимиты
+    love.graphics.setColor(0.9, 0.8, 0.6)
+    local curTotal = betModal.getTotal()
+    local limStr = string.format("%s: %s   •   MIN: %s   •   MAX: %s", i18n.t("bet"), economy.format(curTotal), economy.format(betModal.minBet), economy.format(betModal.maxBet))
     local limW = font and font:getWidth(limStr) or (#limStr * 7)
     love.graphics.print(limStr, mx + mw / 2 - limW / 2, my + 260)
 
