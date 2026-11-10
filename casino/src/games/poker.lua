@@ -19,10 +19,18 @@ poker.bet = 500
 poker.deck = {}
 poker.hand = {}
 poker.holds = { false, false, false, false, false }
-poker.phase = "deal"
+poker.phase = "draw"
 poker.focusCard = 1
-poker.comboText = "PRESS [X] TO DEAL"
+poker.comboText = "SELECT CARDS TO HOLD"
 poker.dealAnim = 1
+poker.betDeducted = false
+poker.autoRestartTimer = 0
+poker.controlMode = 0 -- 0: ABX (A=Hold, X=Draw), 1: D-Pad (Down=Hold, Up=Draw)
+
+function poker.toggleControlMode()
+    poker.controlMode = (poker.controlMode == 0) and 1 or 0
+    audio.play("click")
+end
 
 local suits = { "spade", "heart", "diamond", "club" }
 local values = {
@@ -36,9 +44,11 @@ local values = {
 function poker.resetTable()
     poker.hand = {}
     poker.holds = { false, false, false, false, false }
-    poker.phase = "deal"
+    poker.phase = "draw"
     poker.focusCard = 1
-    poker.comboText = "PRESS [X] TO DEAL"
+    poker.betDeducted = false
+    poker.autoRestartTimer = 0
+    poker.comboText = "SELECT CARDS TO HOLD"
 end
 
 function poker.initDeck()
@@ -100,61 +110,84 @@ function poker.evaluateHand()
     return "NO COMBINATION", 0
 end
 
+function poker.deal()
+    poker.initDeck()
+    poker.hand = {}
+    for i = 1, 5 do
+        local c = table.remove(poker.deck)
+        c.anim = -(i - 1) * 0.12
+        table.insert(poker.hand, c)
+    end
+    poker.holds = { false, false, false, false, false }
+    poker.focusCard = 1
+    poker.phase = "draw"
+    poker.betDeducted = false
+    poker.autoRestartTimer = 0
+    poker.comboText = "SELECT CARDS TO HOLD"
+end
+
+function poker.toggleHold(idx)
+    if poker.phase ~= "draw" or poker.autoRestartTimer > 0 then return end
+    idx = idx or poker.focusCard
+    poker.holds[idx] = not poker.holds[idx]
+    audio.play("click")
+end
+
+function poker.doDraw()
+    if poker.phase ~= "draw" or poker.autoRestartTimer > 0 then return end
+
+    if not poker.betDeducted then
+        if not economy.spend(poker.bet) then
+            audio.play("fail")
+            if bankruptModal.check() then end
+            return
+        end
+        poker.betDeducted = true
+    end
+
+    audio.play("click")
+    for i = 1, 5 do
+        if not poker.holds[i] then
+            local c = table.remove(poker.deck)
+            c.anim = 0.0
+            poker.hand[i] = c
+        end
+    end
+
+    local name, mult = poker.evaluateHand()
+    if mult > 0 then
+        local win = poker.bet * mult
+        economy.add(win)
+        poker.comboText = string.format("★ %s! +%s ★", name, economy.format(win))
+        audio.play("win")
+    else
+        poker.comboText = "NO COMBINATION"
+        audio.play("fail")
+    end
+
+    poker.phase = "result"
+    poker.autoRestartTimer = 2.0
+
+    -- Проверка банкротства или снижение ставки до остатка баланса
+    if bankruptModal.check() then
+        -- открыто окно банкротства
+    elseif poker.bet > economy.getBalance() then
+        poker.bet = math.max(1, economy.getBalance())
+    end
+end
+
 function poker.update(dt)
     for _, c in ipairs(poker.hand) do
         if c.anim and c.anim < 1 then
             c.anim = math.min(1, c.anim + dt * 2.2)
         end
     end
-end
 
-function poker.drawOrDeal()
-    if poker.phase == "deal" then
-        if not economy.spend(poker.bet) then
-            audio.play("fail")
-            return
-        end
-
-        audio.play("click")
-        poker.initDeck()
-        poker.hand = {}
-        for i = 1, 5 do
-            local c = table.remove(poker.deck)
-            c.anim = -(i - 1) * 0.12
-            table.insert(poker.hand, c)
-        end
-        poker.holds = { false, false, false, false, false }
-        poker.focusCard = 1
-        poker.phase = "draw"
-        poker.comboText = "SELECT CARDS TO HOLD"
-    else
-        audio.play("click")
-        for i = 1, 5 do
-            if not poker.holds[i] then
-                local c = table.remove(poker.deck)
-                c.anim = 0.0
-                poker.hand[i] = c
-            end
-        end
-
-        local name, mult = poker.evaluateHand()
-        if mult > 0 then
-            local win = poker.bet * mult
-            economy.add(win)
-            poker.comboText = string.format("★ %s! +%s ★", name, economy.format(win))
-            audio.play("win")
-        else
-            poker.comboText = "NO COMBINATION"
-            audio.play("fail")
-        end
-
-        poker.phase = "deal"
-
-        -- Проверка банкротства или снижение ставки до остатка баланса
-        if bankruptModal.check() then
-            -- открыто окно банкротства
-        elseif poker.bet > economy.getBalance() then
-            poker.bet = math.max(1, economy.getBalance())
+    if poker.autoRestartTimer > 0 then
+        poker.autoRestartTimer = poker.autoRestartTimer - dt
+        if poker.autoRestartTimer <= 0 then
+            poker.autoRestartTimer = 0
+            poker.deal()
         end
     end
 end
@@ -203,13 +236,13 @@ local function drawCard(c, x, y, held, focused)
 
     if held then
         love.graphics.setColor(0.7, 0.15, 0.1)
-        love.graphics.rectangle("fill", x + (cw - 90) / 2, y - 28, 90, 24, 4)
+        love.graphics.rectangle("fill", x + (cw - 90) / 2, y - 42, 90, 22, 4)
         love.graphics.setColor(1, 0.88, 0.4)
         love.graphics.setLineWidth(1.5)
-        love.graphics.rectangle("line", x + (cw - 90) / 2, y - 28, 90, 24, 4)
+        love.graphics.rectangle("line", x + (cw - 90) / 2, y - 42, 90, 22, 4)
         love.graphics.setLineWidth(1)
         love.graphics.setColor(1, 1, 1)
-        love.graphics.print("HOLD", x + (cw - 90) / 2 + 22, y - 23)
+        love.graphics.print("HOLD", x + (cw - 90) / 2 + 24, y - 38)
     end
 end
 
@@ -333,12 +366,12 @@ function poker.draw()
     love.graphics.setColor(1, 0.88, 0.4)
     love.graphics.print(economy.format(poker.bet), 96, 590)
 
-    if poker.phase == "draw" then
+    if poker.phase == "draw" and poker.betDeducted then
         love.graphics.setColor(0.6, 0.5, 0.4)
         love.graphics.print("(LOCKED)", 205, 590)
     end
 
-    local function drawGameBtn(bx, by, bw, bh, bCol, keyCol, keyChar, label)
+    local function drawGameBtn(bx, by, bw, bh, bCol, keyCol, dir, label)
         love.graphics.setColor(0.08, 0.03, 0.01)
         love.graphics.rectangle("fill", bx, by, bw, bh, 4)
         love.graphics.setColor(bCol[1], bCol[2], bCol[3])
@@ -354,51 +387,99 @@ function poker.draw()
         love.graphics.setLineWidth(1.5)
         love.graphics.circle("line", cx, cy, 11)
         love.graphics.setLineWidth(1)
-        love.graphics.print(keyChar, cx - 4, cy - 7)
+
+        -- Стрелка D-Pad или буквенная метка
+        love.graphics.setColor(0.08, 0.03, 0.01)
+        if dir == "up" then
+            love.graphics.rectangle("fill", cx - 1, cy - 5, 2, 2)
+            love.graphics.rectangle("fill", cx - 3, cy - 3, 6, 2)
+            love.graphics.rectangle("fill", cx - 5, cy - 1, 10, 2)
+            love.graphics.rectangle("fill", cx - 2, cy + 1, 4, 4)
+        elseif dir == "down" then
+            love.graphics.rectangle("fill", cx - 2, cy - 5, 4, 4)
+            love.graphics.rectangle("fill", cx - 5, cy - 1, 10, 2)
+            love.graphics.rectangle("fill", cx - 3, cy + 1, 6, 2)
+            love.graphics.rectangle("fill", cx - 1, cy + 3, 2, 2)
+        else
+            local font = love.graphics.getFont()
+            local kw = font and font:getWidth(dir) or (#dir * 8)
+            love.graphics.print(dir, cx - kw / 2, cy - 7)
+        end
 
         love.graphics.setColor(1, 1, 1)
         love.graphics.print(label, bx + 36, cy - 7)
     end
 
-    local drawLabel = (poker.phase == "draw") and "DRAW" or "DEAL"
-    drawGameBtn(740, 570, 220, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "X", drawLabel)
+    if poker.phase == "draw" and poker.autoRestartTimer == 0 then
+        if poker.controlMode == 0 then
+            drawGameBtn(510, 570, 140, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", "HOLD")
+            drawGameBtn(675, 570, 145, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "X", "DRAW")
+        else
+            drawGameBtn(510, 570, 140, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "down", "HOLD")
+            drawGameBtn(675, 570, 145, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "up", "DRAW")
+        end
+    end
+
+    -- Кнопка SWITCH (R2) справа всегда видна
+    drawGameBtn(840, 570, 140, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "R2", "SWITCH")
 end
 
 function poker.keypressed(key)
+    if key == "r2" or key == "c" or key == "tab" then
+        poker.toggleControlMode()
+        return
+    end
+
     if key == "y" then
-        if poker.phase == "draw" then
+        if poker.phase == "draw" and poker.betDeducted then
             audio.play("fail")
             return
         end
         betModal.open(poker.bet, 100, economy.getBalance(), function(newBet)
             poker.bet = newBet
         end)
-    elseif poker.phase == "draw" then
+        return
+    end
+
+    if poker.phase == "draw" and poker.autoRestartTimer == 0 then
         if key == "left" then
             poker.focusCard = (poker.focusCard == 1) and 5 or (poker.focusCard - 1)
             audio.play("click")
         elseif key == "right" then
             poker.focusCard = (poker.focusCard == 5) and 1 or (poker.focusCard + 1)
             audio.play("click")
-        elseif key == "a" then
-            poker.holds[poker.focusCard] = not poker.holds[poker.focusCard]
-            audio.play("click")
         end
-    end
 
-    if key == "1" then poker.holds[1] = not poker.holds[1]
-    elseif key == "2" then poker.holds[2] = not poker.holds[2]
-    elseif key == "3" then poker.holds[3] = not poker.holds[3]
-    elseif key == "4" then poker.holds[4] = not poker.holds[4]
-    elseif key == "5" then poker.holds[5] = not poker.holds[5]
-    elseif key == "x" or key == "space" or key == "return" then
-        poker.drawOrDeal()
+        if poker.controlMode == 0 then
+            if key == "a" then
+                poker.toggleHold(poker.focusCard)
+            elseif key == "x" or key == "space" or key == "return" then
+                poker.doDraw()
+            end
+        else
+            if key == "down" then
+                poker.toggleHold(poker.focusCard)
+            elseif key == "up" then
+                poker.doDraw()
+            end
+        end
+
+        if key == "1" then poker.toggleHold(1)
+        elseif key == "2" then poker.toggleHold(2)
+        elseif key == "3" then poker.toggleHold(3)
+        elseif key == "4" then poker.toggleHold(4)
+        elseif key == "5" then poker.toggleHold(5)
+        end
     end
 end
 
 function poker.mousepressed(x, y)
     -- Окно ставки [Y] (щедрая зона клика)
     if x >= 40 and x <= 335 and y >= 550 and y <= 620 then
+        if poker.phase == "draw" and poker.betDeducted then
+            audio.play("fail")
+            return true
+        end
         betModal.open(poker.bet, 100, economy.getBalance(), function(newBet)
             poker.bet = newBet
         end)
@@ -406,21 +487,32 @@ function poker.mousepressed(x, y)
     end
 
     -- Клик по картам: y in 150..440
-    if poker.phase == "draw" and y >= 150 and y <= 440 then
+    if poker.phase == "draw" and poker.autoRestartTimer == 0 and y >= 150 and y <= 440 then
         for i = 1, 5 do
             local cx = 45 + (i - 1) * 192
             if x >= cx and x <= cx + 166 then
                 poker.focusCard = i
-                poker.holds[i] = not poker.holds[i]
-                audio.play("click")
+                poker.toggleHold(i)
                 return true
             end
         end
     end
 
-    -- Кнопка DRAW / DEAL (X): 740, 570, 220, 40
-    if x >= 740 and x <= 960 and y >= 570 and y <= 610 then
-        poker.drawOrDeal()
+    -- Кнопка HOLD: 510..650
+    if poker.phase == "draw" and poker.autoRestartTimer == 0 and x >= 510 and x <= 650 and y >= 570 and y <= 610 then
+        poker.toggleHold(poker.focusCard)
+        return true
+    end
+
+    -- Кнопка DRAW: 675..820
+    if poker.phase == "draw" and poker.autoRestartTimer == 0 and x >= 675 and x <= 820 and y >= 570 and y <= 610 then
+        poker.doDraw()
+        return true
+    end
+
+    -- Кнопка SWITCH: 840..980
+    if x >= 840 and x <= 980 and y >= 570 and y <= 610 then
+        poker.toggleControlMode()
         return true
     end
 

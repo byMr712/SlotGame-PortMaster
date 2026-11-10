@@ -192,12 +192,12 @@ local function handleGlobalInput(action)
         activeTab = (activeTab == 1) and 4 or (activeTab - 1)
         audio.play("click")
         if activeTab == 2 and #bj.playerHand == 0 then bj.deal() end
-        if activeTab == 4 and #poker.hand == 0 then poker.drawOrDeal() end
+        if activeTab == 4 and #poker.hand == 0 then poker.deal() end
     elseif action == "next_tab" then
         activeTab = (activeTab == 4) and 1 or (activeTab + 1)
         audio.play("click")
         if activeTab == 2 and #bj.playerHand == 0 then bj.deal() end
-        if activeTab == 4 and #poker.hand == 0 then poker.drawOrDeal() end
+        if activeTab == 4 and #poker.hand == 0 then poker.deal() end
     elseif action == "currency" then
         economy.toggleCurrency()
         audio.play("click")
@@ -233,7 +233,7 @@ function love.keypressed(key)
     elseif key == "1" then activeTab = 1; audio.play("click")
     elseif key == "2" then activeTab = 2; audio.play("click"); if #bj.playerHand == 0 then bj.deal() end
     elseif key == "3" then activeTab = 3; audio.play("click")
-    elseif key == "4" then activeTab = 4; audio.play("click"); if #poker.hand == 0 then poker.drawOrDeal() end
+    elseif key == "4" then activeTab = 4; audio.play("click"); if #poker.hand == 0 then poker.deal() end
     elseif key == "c" or key == "rshift" or key == "lshift" then
         handleGlobalInput("currency")
     elseif key == "m" or key == "tab" or key == "escape" then
