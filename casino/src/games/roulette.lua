@@ -3,6 +3,7 @@ local roulette = {}
 local economy = require("src.core.economy")
 local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
+local betModal = require("src.core.bet_modal")
 
 roulette.wheel = { 0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26 }
 roulette.redNumbers = { 1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36 }
@@ -17,21 +18,39 @@ roulette.wheelAngle = 0
 roulette.ballAngle = 0
 roulette.ballRadius = 110
 roulette.history = { 32, 15 }
-roulette.statusText = "D-PAD SELECT • [A] BET • [X] SPIN"
+roulette.statusText = "[D-PAD] MOVE • [A] BET • [B] CLEAR • [X] SPIN"
 roulette.zoom = 0
 roulette.targetZoom = 0
 roulette.holdTimer = 0
 
-local grid = {
-    { "0" },
-    { "3", "6", "9", "12", "15", "18", "21", "24", "27", "30", "33", "36" },
-    { "2", "5", "8", "11", "14", "17", "20", "23", "26", "29", "32", "35" },
-    { "1", "4", "7", "10", "13", "16", "19", "22", "25", "28", "31", "34" },
-    { "doz-1", "doz-2", "doz-3" },
-    { "low", "even", "red", "black", "odd", "high" }
-}
-roulette.cursorRow = 2
-roulette.cursorCol = 1
+-- Свободная 2D навигация: строки 0..5, столбцы 0..12
+roulette.curRow = 2
+roulette.curCol = 1
+
+function roulette.getCurrentKey()
+    if roulette.curRow == 0 or roulette.curCol == 0 then
+        return "0"
+    elseif roulette.curRow >= 1 and roulette.curRow <= 3 then
+        local rowNums = {
+            { "3", "6", "9", "12", "15", "18", "21", "24", "27", "30", "33", "36" },
+            { "2", "5", "8", "11", "14", "17", "20", "23", "26", "29", "32", "35" },
+            { "1", "4", "7", "10", "13", "16", "19", "22", "25", "28", "31", "34" }
+        }
+        return rowNums[roulette.curRow][roulette.curCol]
+    elseif roulette.curRow == 4 then
+        if roulette.curCol <= 4 then return "doz-1"
+        elseif roulette.curCol <= 8 then return "doz-2"
+        else return "doz-3" end
+    elseif roulette.curRow == 5 then
+        if roulette.curCol <= 2 then return "low"
+        elseif roulette.curCol <= 4 then return "even"
+        elseif roulette.curCol <= 6 then return "red"
+        elseif roulette.curCol <= 8 then return "black"
+        elseif roulette.curCol <= 10 then return "odd"
+        else return "high" end
+    end
+    return "0"
+end
 
 local function isRed(num)
     for _, r in ipairs(roulette.redNumbers) do
@@ -58,8 +77,8 @@ function roulette.getTotalBet()
 end
 
 function roulette.placeBet()
-    local row = grid[roulette.cursorRow]
-    local key = row[math.min(roulette.cursorCol, #row)]
+    if roulette.isSpinning then return end
+    local key = roulette.getCurrentKey()
     local amt = roulette.selectedChip
 
     -- Запрет противоположных ставок
@@ -90,9 +109,20 @@ function roulette.placeBet()
     end
 end
 
+function roulette.clearBets()
+    if roulette.isSpinning then return end
+    local total = roulette.getTotalBet()
+    if total > 0 then
+        economy.add(total)
+        roulette.bets = {}
+        audio.play("click")
+        roulette.statusText = "ALL BETS CLEARED"
+    end
+end
+
 function roulette.removeBet()
-    local row = grid[roulette.cursorRow]
-    local key = row[math.min(roulette.cursorCol, #row)]
+    if roulette.isSpinning then return end
+    local key = roulette.getCurrentKey()
     if roulette.bets[key] then
         economy.add(roulette.bets[key])
         roulette.bets[key] = nil
@@ -321,13 +351,14 @@ local function drawGrid(alpha)
     local cellW, cellH = 48, 56
     local totalW = cellW * 12 + 22
 
-    -- 1. Сектор 0 ZERO (35:1)
+    -- 1. Сектор 0 ZERO (x36)
     love.graphics.setColor(0.1, 0.45, 0.15, alpha)
     love.graphics.rectangle("fill", tx, ty, totalW, 36, 4)
     love.graphics.setColor(1, 1, 1, alpha)
-    love.graphics.print("0 ZERO (35:1)", tx + 240, ty + 10)
+    love.graphics.print("0 ZERO (x36)", tx + 240, ty + 10)
 
-    if roulette.cursorRow == 1 then
+    local curKey = roulette.getCurrentKey()
+    if curKey == "0" then
         love.graphics.setColor(1, 0.88, 0.2, alpha)
         love.graphics.setLineWidth(3)
         love.graphics.rectangle("line", tx - 2, ty - 2, totalW + 4, 40, 4)
@@ -359,7 +390,7 @@ local function drawGrid(alpha)
             love.graphics.setColor(1, 1, 1, alpha)
             love.graphics.print(tostring(num), x + 16, y + 20)
 
-            if roulette.cursorRow == rowIdx + 1 and roulette.cursorCol == colIdx then
+            if roulette.curRow == rowIdx and roulette.curCol == colIdx and roulette.curCol > 0 then
                 love.graphics.setColor(1, 0.88, 0.2, alpha)
                 love.graphics.setLineWidth(3)
                 love.graphics.rectangle("line", x - 2, y - 2, cellW + 4, cellH + 4, 4)
@@ -373,14 +404,14 @@ local function drawGrid(alpha)
         end
     end
 
-    -- 3. Дюжины: 1ST 12, 2ND 12, 3RD 12 (2:1)
+    -- 3. Дюжины: 1-12, 13-24, 25-36 (x3)
     local dozY = ty + 40 + 3 * (cellH + 2) + 2
     local dozW = (totalW - 4) / 3
     local dozH = 34
     local dozDefs = {
-        { key = "doz-1", label = "1ST 12 (2:1)" },
-        { key = "doz-2", label = "2ND 12 (2:1)" },
-        { key = "doz-3", label = "3RD 12 (2:1)" }
+        { key = "doz-1", label = "1-12 (x3)" },
+        { key = "doz-2", label = "13-24 (x3)" },
+        { key = "doz-3", label = "25-36 (x3)" }
     }
     for colIdx, doz in ipairs(dozDefs) do
         local x = tx + (colIdx - 1) * (dozW + 2)
@@ -388,9 +419,9 @@ local function drawGrid(alpha)
         love.graphics.rectangle("fill", x, dozY, dozW, dozH, 3)
 
         love.graphics.setColor(1, 1, 1, alpha)
-        love.graphics.print(doz.label, x + dozW / 2 - 38, dozY + 10)
+        love.graphics.print(doz.label, x + dozW / 2 - 34, dozY + 10)
 
-        if roulette.cursorRow == 5 and roulette.cursorCol == colIdx then
+        if roulette.curRow == 4 and ((colIdx == 1 and roulette.curCol <= 4) or (colIdx == 2 and roulette.curCol >= 5 and roulette.curCol <= 8) or (colIdx == 3 and roulette.curCol >= 9)) then
             love.graphics.setColor(1, 0.88, 0.2, alpha)
             love.graphics.setLineWidth(3)
             love.graphics.rectangle("line", x - 2, dozY - 2, dozW + 4, dozH + 4, 4)
@@ -403,17 +434,17 @@ local function drawGrid(alpha)
         end
     end
 
-    -- 4. Внешние ставки: 1-18, EVEN, RED, BLACK, ODD, 19-36 (1:1)
+    -- 4. Внешние ставки: 1-18, EVEN, RED, BLACK, ODD, 19-36 (x2)
     local outY = dozY + dozH + 4
     local outW = (totalW - 10) / 6
     local outH = 34
     local outDefs = {
-        { key = "low",   label = "1-18",  bg = { 0.09, 0.29, 0.16 } },
-        { key = "even",  label = "EVEN",  bg = { 0.09, 0.29, 0.16 } },
-        { key = "red",   label = "RED",   bg = { 0.70, 0.15, 0.10 } },
-        { key = "black", label = "BLACK", bg = { 0.12, 0.05, 0.02 } },
-        { key = "odd",   label = "ODD",   bg = { 0.09, 0.29, 0.16 } },
-        { key = "high",  label = "19-36", bg = { 0.09, 0.29, 0.16 } }
+        { key = "low",   label = "1-18 (x2)",  bg = { 0.09, 0.29, 0.16 } },
+        { key = "even",  label = "EVEN (x2)",  bg = { 0.09, 0.29, 0.16 } },
+        { key = "red",   label = "RED (x2)",   bg = { 0.70, 0.15, 0.10 } },
+        { key = "black", label = "BLACK (x2)", bg = { 0.12, 0.05, 0.02 } },
+        { key = "odd",   label = "ODD (x2)",   bg = { 0.09, 0.29, 0.16 } },
+        { key = "high",  label = "19-36 (x2)", bg = { 0.09, 0.29, 0.16 } }
     }
     for colIdx, ob in ipairs(outDefs) do
         local x = tx + (colIdx - 1) * (outW + 2)
@@ -423,7 +454,15 @@ local function drawGrid(alpha)
         love.graphics.setColor(1, 1, 1, alpha)
         love.graphics.print(ob.label, x + outW / 2 - (#ob.label * 4), outY + 10)
 
-        if roulette.cursorRow == 6 and roulette.cursorCol == colIdx then
+        local isOutFocus = (roulette.curRow == 5 and (
+            (colIdx == 1 and roulette.curCol <= 2) or
+            (colIdx == 2 and roulette.curCol >= 3 and roulette.curCol <= 4) or
+            (colIdx == 3 and roulette.curCol >= 5 and roulette.curCol <= 6) or
+            (colIdx == 4 and roulette.curCol >= 7 and roulette.curCol <= 8) or
+            (colIdx == 5 and roulette.curCol >= 9 and roulette.curCol <= 10) or
+            (colIdx == 6 and roulette.curCol >= 11)
+        ))
+        if isOutFocus then
             love.graphics.setColor(1, 0.88, 0.2, alpha)
             love.graphics.setLineWidth(3)
             love.graphics.rectangle("line", x - 2, outY - 2, outW + 4, outH + 4, 4)
@@ -441,22 +480,28 @@ local function drawGrid(alpha)
 
     -- Панель фишки и общей ставки
     love.graphics.setColor(0.12, 0.05, 0.02, alpha)
-    love.graphics.rectangle("fill", 50, 566, 390, 48, 4)
-    love.graphics.setColor(0.65, 0.45, 0.15, alpha)
-    love.graphics.rectangle("line", 50, 566, 390, 48, 4)
+    love.graphics.rectangle("fill", 50, 566, 360, 48, 4)
+    love.graphics.setColor(0.78, 0.52, 0.12, alpha)
+    love.graphics.rectangle("line", 50, 566, 360, 48, 4)
+
+    -- Желтый значок [Y]
+    love.graphics.setColor(0.96, 0.78, 0.2, alpha)
+    love.graphics.circle("fill", 72, 590, 12)
+    love.graphics.setColor(0.08, 0.03, 0.01, alpha)
+    love.graphics.setLineWidth(1.5)
+    love.graphics.circle("line", 72, 590, 12)
+    love.graphics.setLineWidth(1)
+    love.graphics.print("Y", 68, 583)
 
     love.graphics.setColor(0.9, 0.8, 0.55, alpha)
-    love.graphics.print("CHIP [Y]:", 60, 572)
+    love.graphics.print("CHIP:", 92, 574)
     love.graphics.setColor(1, 0.88, 0.4, alpha)
-    love.graphics.print(economy.format(roulette.selectedChip), 135, 572)
+    love.graphics.print(economy.format(roulette.selectedChip), 92, 590)
 
     love.graphics.setColor(0.9, 0.8, 0.55, alpha)
-    love.graphics.print("TOTAL:", 235, 572)
+    love.graphics.print("TOTAL:", 220, 574)
     love.graphics.setColor(1, 0.88, 0.4, alpha)
-    love.graphics.print(economy.format(roulette.getTotalBet()), 295, 572)
-
-    love.graphics.setColor(0.75, 0.7, 0.55, alpha)
-    love.graphics.print("[D-PAD] MOVE CURSOR  •  [A] PLACE  •  [B] UNDO", 60, 592)
+    love.graphics.print(economy.format(roulette.getTotalBet()), 220, 590)
 
     local function drawGameBtn(bx, by, bw, bh, bCol, keyCol, keyChar, label)
         love.graphics.setColor(0.08, 0.03, 0.01, alpha)
@@ -480,10 +525,10 @@ local function drawGrid(alpha)
         love.graphics.print(label, bx + 36, cy - 7)
     end
 
-    drawGameBtn(460, 570, 115, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", "BET")
-    drawGameBtn(585, 570, 120, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "B", "UNDO")
-    drawGameBtn(715, 570, 120, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "Y", "CHIP")
-    drawGameBtn(845, 570, 125, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "X", "SPIN")
+    drawGameBtn(430, 570, 120, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", "BET")
+    drawGameBtn(565, 570, 130, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "B", "CLEAR")
+    drawGameBtn(710, 570, 130, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "Y", "SET BET")
+    drawGameBtn(855, 570, 120, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "X", "SPIN!")
 end
 
 function roulette.draw()
@@ -584,29 +629,28 @@ function roulette.draw()
 end
 
 function roulette.keypressed(key)
+    if roulette.isSpinning then return end
+
     if key == "up" then
-        roulette.cursorRow = math.max(1, roulette.cursorRow - 1)
-        roulette.cursorCol = math.min(roulette.cursorCol, #grid[roulette.cursorRow])
+        roulette.curRow = math.max(0, roulette.curRow - 1)
         audio.play("click")
     elseif key == "down" then
-        roulette.cursorRow = math.min(#grid, roulette.cursorRow + 1)
-        roulette.cursorCol = math.min(roulette.cursorCol, #grid[roulette.cursorRow])
+        roulette.curRow = math.min(5, roulette.curRow + 1)
         audio.play("click")
     elseif key == "left" then
-        roulette.cursorCol = math.max(1, roulette.cursorCol - 1)
+        roulette.curCol = math.max(0, roulette.curCol - 1)
         audio.play("click")
     elseif key == "right" then
-        local maxCols = #grid[roulette.cursorRow]
-        roulette.cursorCol = math.min(maxCols, roulette.cursorCol + 1)
+        roulette.curCol = math.min(12, roulette.curCol + 1)
         audio.play("click")
     elseif key == "a" then
         roulette.placeBet()
     elseif key == "b" then
-        roulette.removeBet()
+        roulette.clearBets()
     elseif key == "y" then
-        roulette.chipIdx = (roulette.chipIdx % #roulette.chips) + 1
-        roulette.selectedChip = roulette.chips[roulette.chipIdx]
-        audio.play("coin")
+        betModal.open(roulette.selectedChip, 100, economy.getBalance(), function(newChip)
+            roulette.selectedChip = newChip
+        end)
     elseif key == "x" or key == "space" or key == "return" then
         roulette.spin()
     end

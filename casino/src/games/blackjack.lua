@@ -290,7 +290,7 @@ function bj.draw()
     love.graphics.print("Y", 72, 583)
 
     love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print("BET (PRESS Y):", 96, 574)
+    love.graphics.print(i18n.t("bet") .. ":", 96, 574)
     love.graphics.setColor(1, 0.88, 0.4)
     love.graphics.print(economy.format(bj.bet), 96, 590)
 

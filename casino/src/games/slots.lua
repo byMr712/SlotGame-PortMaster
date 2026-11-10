@@ -314,7 +314,7 @@ function slots.draw()
     love.graphics.print("Y", 76, 561)
 
     love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print("BET (PRESS Y):", 100, 550)
+    love.graphics.print(i18n.t("bet") .. ":", 100, 550)
     love.graphics.setColor(1, 0.88, 0.4)
     love.graphics.print(economy.format(slots.bet), 100, 568)
 

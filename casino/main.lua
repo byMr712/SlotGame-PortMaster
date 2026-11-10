@@ -8,6 +8,7 @@ local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
 local sprites = require("src.core.sprites")
 local betModal = require("src.core.bet_modal")
+local langModal = require("src.core.lang_modal")
 
 local activeTab = 1 -- 1: Slots (Стартуем всегда со слотов!), 2: BJ, 3: Roulette, 4: Poker
 
@@ -17,6 +18,7 @@ function love.load()
     slots.init()
     bj.createDeck()
     poker.initDeck()
+    langModal.init()
 end
 
 function love.update(dt)
@@ -57,7 +59,7 @@ function love.draw()
     love.graphics.rectangle("fill", 24, 18, 976, 44, 4)
 
     -- Вкладка залов в одну ячейку: меняется по L1 / R1, без цифр
-    local roomNames = { "SLOTS", "BLACKJACK", "ROULETTE", "POKER" }
+    local roomNames = { i18n.t("tab_slots"), i18n.t("tab_bj"), i18n.t("tab_roulette"), i18n.t("tab_poker") }
     love.graphics.setColor(0.18, 0.08, 0.03)
     love.graphics.rectangle("fill", 30, 24, 360, 32, 4)
     love.graphics.setColor(0.55, 0.26, 0.08)
@@ -112,16 +114,9 @@ function love.draw()
         poker.draw()
     end
 
-    -- 4. Нижняя строка подсказок
-    love.graphics.setColor(0.12, 0.05, 0.02)
-    love.graphics.rectangle("fill", 24, 718, 976, 28, 4)
-    love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print("[L1/R1] ROOMS  •  [Y] BET SETUP  •  [D-PAD] ACTIONS  •  [A/X] CONFIRM", 36, 725)
-    love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print("TRIMUI BRICK EDITION", 800, 725)
-
-    -- 5. Модальное окно точной настройки ставки
+    -- 4. Модальные окна (настройка ставки и выбор языка)
     betModal.draw()
+    langModal.draw()
 end
 
 local function handleGlobalInput(action)
@@ -145,6 +140,12 @@ local function handleGlobalInput(action)
 end
 
 function love.keypressed(key)
+    -- Если открыто окно выбора языка, ввод идет в него
+    if langModal.active then
+        langModal.keypressed(key)
+        return
+    end
+
     -- Если открыто окно ставки, весь ввод идет в него
     if betModal.active then
         betModal.keypressed(key)
