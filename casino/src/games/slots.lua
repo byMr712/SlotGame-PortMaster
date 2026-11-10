@@ -65,18 +65,19 @@ function slots.spin()
     slots.winPulse = 0
     slots.winLineTimer = 0
 
-    -- Удвоение шансов на крутые выигрыши (x500, x100, x30, x15), кроме x3
-    -- Исходные вероятности 3-в-ряд: stardrop=1/13824, prism=8/13824, ancient=64/13824, cherry=64/13824
+    -- Увеличение шансов на топовые выигрыши (x500, x100, x30, x15) ещё в 5 раз (10x от базы):
+    -- База: stardrop=1, prism=8, ancient=64, cherry=64 на 13824
+    -- Итоговые шансы: stardrop=10/13824, prism=80/13824, ancient=640/13824, cherry=640/13824
     local boostedSym = nil
     local boostRoll = math.random() * 13824
-    if boostRoll < 1 then
-        boostedSym = "stardrop" -- x500
-    elseif boostRoll < (1 + 8) then
-        boostedSym = "prism"    -- x100
-    elseif boostRoll < (1 + 8 + 64) then
-        boostedSym = "ancient"  -- x30
-    elseif boostRoll < (1 + 8 + 64 + 64) then
-        boostedSym = "cherry"   -- x15
+    if boostRoll < 9 then
+        boostedSym = "stardrop" -- x500 (10/13824)
+    elseif boostRoll < (9 + 72) then
+        boostedSym = "prism"    -- x100 (80/13824)
+    elseif boostRoll < (9 + 72 + 576) then
+        boostedSym = "ancient"  -- x30 (640/13824)
+    elseif boostRoll < (9 + 72 + 576 + 576) then
+        boostedSym = "cherry"   -- x15 (640/13824)
     end
 
     for r = 1, 3 do
