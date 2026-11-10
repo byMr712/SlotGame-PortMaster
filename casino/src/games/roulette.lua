@@ -18,8 +18,8 @@ roulette.isSpinning = false
 roulette.wheelAngle = 0
 roulette.ballAngle = 0
 roulette.ballRadius = 110
-roulette.history = { 32, 15 }
-roulette.statusText = "PLACE YOUR BETS"
+roulette.history = { { num = 32, won = true }, { num = 15, won = false } }
+roulette.statusText = ""
 roulette.zoom = 0
 roulette.targetZoom = 0
 roulette.holdTimer = 0
@@ -309,9 +309,6 @@ function roulette.finishSpin()
     local red = isRed(num)
     local colName = num == 0 and "ZERO" or (red and "RED" or "BLACK")
 
-    table.insert(roulette.history, 1, num)
-    if #roulette.history > 6 then table.remove(roulette.history) end
-
     -- Выплаты по стандартным европейским правилам:
     local payout = 0
     local key = tostring(num)
@@ -333,6 +330,10 @@ function roulette.finishSpin()
         if num >= 13 and num <= 24 and roulette.bets["doz-2"] then payout = payout + roulette.bets["doz-2"] * 3 end
         if num >= 25 and num <= 36 and roulette.bets["doz-3"] then payout = payout + roulette.bets["doz-3"] * 3 end
     end
+
+    local won = (payout > 0)
+    table.insert(roulette.history, 1, { num = num, won = won })
+    if #roulette.history > 10 then table.remove(roulette.history) end
 
     if payout > 0 then
         economy.add(payout)
@@ -540,10 +541,65 @@ local function drawGrid(alpha)
 end
 
 function roulette.draw()
-    love.graphics.setColor(0.22, 0.1, 0.04)
-    love.graphics.rectangle("fill", 40, 80, 944, 40, 4)
+    local font = love.graphics.getFont()
+
+    -- 1. Верхняя латунная плашка истории (расширена вниз, высота 54px, без подсказок справа)
+    love.graphics.setColor(0.18, 0.08, 0.03)
+    love.graphics.rectangle("fill", 40, 74, 944, 54, 4)
+    love.graphics.setColor(0.78, 0.52, 0.12)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", 40, 74, 944, 54, 4)
+    love.graphics.setLineWidth(1)
+
+    -- Подпись HISTORY: (золотой фирменный шрифт в стиле остальных залов)
+    local histLabel = i18n.t("history") .. ":"
+    local htw = font and font:getWidth(histLabel) or (#histLabel * 8)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(roulette.statusText, 60, 92)
+    love.graphics.print(histLabel, 54, 92, 0, 1.15, 1.15)
+
+    -- Увеличенные значки выпавших цифр
+    local badgeStartX = 54 + htw * 1.15 + 14
+    local badgeW = 38
+    local badgeH = 36
+    local badgeY = 83
+
+    for i, item in ipairs(roulette.history) do
+        if i > 8 then break end
+        local bx = badgeStartX + (i - 1) * (badgeW + 8)
+        local n = (type(item) == "table") and item.num or item
+        local won = (type(item) == "table") and item.won or false
+
+        -- Фон значка цифры
+        if n == 0 then
+            love.graphics.setColor(0.08, 0.36, 0.14)
+        elseif isRed(n) then
+            love.graphics.setColor(0.72, 0.16, 0.1)
+        else
+            love.graphics.setColor(0.1, 0.04, 0.02)
+        end
+        love.graphics.rectangle("fill", bx, badgeY, badgeW, badgeH, 4)
+        love.graphics.setColor(0.3, 0.15, 0.08)
+        love.graphics.rectangle("line", bx, badgeY, badgeW, badgeH, 4)
+
+        -- Число
+        local nStr = tostring(n)
+        local ntw = font and font:getWidth(nStr) or (#nStr * 8)
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.print(nStr, bx + badgeW / 2 - (ntw * 1.1) / 2, badgeY + 8, 0, 1.1, 1.1)
+
+        -- Фирменное золотое нижнее подчеркивание, если победили
+        if won then
+            love.graphics.setColor(1, 0.88, 0.4)
+            love.graphics.rectangle("fill", bx + 3, badgeY + badgeH - 3, badgeW - 6, 3, 1)
+        end
+    end
+
+    -- Статус выигрыша справа (подсказки кнопок убраны)
+    if roulette.statusText ~= "" then
+        local stw = font and font:getWidth(roulette.statusText) or (#roulette.statusText * 8)
+        love.graphics.setColor(1, 0.88, 0.4)
+        love.graphics.print(roulette.statusText, 960 - stw, 92)
+    end
 
     -- Расчет плавного зума и центровки на всё свободное пространство экрана
     local cx = 175 + roulette.zoom * (512 - 175)
