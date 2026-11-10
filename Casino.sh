@@ -23,16 +23,29 @@ GAMEDIR="/$directory/ports/casino"
 
 cd $GAMEDIR
 
-# Поиск среды выполнения LÖVE 11.5
+# Поиск среды выполнения LÖVE 11.x (PortMaster / Linux)
 if [ -f "/usr/bin/love" ]; then
   LOVE_BIN="/usr/bin/love"
 elif [ -f "$controlfolder/love/love" ]; then
   LOVE_BIN="$controlfolder/love/love"
+elif [ -f "$controlfolder/libs/love/love" ]; then
+  LOVE_BIN="$controlfolder/libs/love/love"
 elif [ -f "/roms/ports/PortMaster/love/love" ]; then
   LOVE_BIN="/roms/ports/PortMaster/love/love"
 else
   LOVE_BIN="love"
 fi
 
+# Определение расположения игры (папка или подпапка)
+if [ -f "$GAMEDIR/main.lua" ]; then
+  GAME_TARGET="$GAMEDIR"
+elif [ -f "$GAMEDIR/casino/main.lua" ]; then
+  GAME_TARGET="$GAMEDIR/casino"
+elif [ -f "$GAMEDIR/game.love" ]; then
+  GAME_TARGET="$GAMEDIR/game.love"
+else
+  GAME_TARGET="."
+fi
+
 $ESUDO chmod +x "$GAMEDIR/Casino.sh" 2>/dev/null
-$LOVE_BIN "$GAMEDIR/casino"
+$LOVE_BIN "$GAME_TARGET"
