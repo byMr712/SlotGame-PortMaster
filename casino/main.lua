@@ -256,6 +256,8 @@ end
 local stickDeadzone = 0.5
 local lastStickX = 0
 local lastStickY = 0
+local lastTriggerL = 0
+local lastTriggerR = 0
 
 function love.gamepadpressed(joystick, button)
     if betModal.active then
@@ -297,7 +299,7 @@ function love.gamepadpressed(joystick, button)
     end
 end
 
--- Навигация левым аналоговым стиком как D-pad
+-- Навигация левым аналоговым стиком как D-pad и аналоговые триггеры L2/R2
 function love.gamepadaxis(joystick, axis, value)
     if axis == "leftx" then
         if value < -stickDeadzone and lastStickX >= -stickDeadzone then
@@ -313,6 +315,24 @@ function love.gamepadaxis(joystick, axis, value)
             love.keypressed("down")
         end
         lastStickY = value
+    elseif axis == "triggerleft" then
+        if value > 0.4 and lastTriggerL <= 0.4 then
+            if betModal.active then
+                betModal.keypressed("l2")
+            else
+                love.keypressed("l2")
+            end
+        end
+        lastTriggerL = value
+    elseif axis == "triggerright" then
+        if value > 0.4 and lastTriggerR <= 0.4 then
+            if betModal.active then
+                betModal.keypressed("r2")
+            else
+                love.keypressed("r2")
+            end
+        end
+        lastTriggerR = value
     end
 end
 

@@ -45,6 +45,12 @@ function betModal.setHalf()
     local bal = economy.getBalance()
     if cur > bal then cur = bal end
     syncDigits(cur)
+    for i = 1, 10 do
+        if betModal.digits[i] > 0 then
+            betModal.cursor = i
+            break
+        end
+    end
     audio.play("click")
 end
 
@@ -52,7 +58,14 @@ function betModal.setDouble()
     local cur = betModal.getTotal() * 2
     local bal = economy.getBalance()
     cur = math.min(bal, cur)
+    if cur > 9999999999 then cur = 9999999999 end
     syncDigits(cur)
+    for i = 1, 10 do
+        if betModal.digits[i] > 0 then
+            betModal.cursor = i
+            break
+        end
+    end
     audio.play("click")
 end
 
@@ -61,12 +74,26 @@ function betModal.setMin()
     local bal = economy.getBalance()
     if bal < cur and bal > 0 then cur = 1 end
     syncDigits(cur)
+    for i = 1, 10 do
+        if betModal.digits[i] > 0 then
+            betModal.cursor = i
+            break
+        end
+    end
     audio.play("click")
 end
 
 function betModal.setMax()
     local bal = economy.getBalance()
-    syncDigits(bal)
+    local target = math.min(bal, betModal.maxBet or bal)
+    if target > 9999999999 then target = 9999999999 end
+    syncDigits(target)
+    for i = 1, 10 do
+        if betModal.digits[i] > 0 then
+            betModal.cursor = i
+            break
+        end
+    end
     audio.play("coin")
 end
 
@@ -180,8 +207,8 @@ function betModal.mousepressed(x, y)
         end
     end
 
-    -- 2. Клик по кнопкам быстрого изменения: [L2] MIN, [L1] /2, [R1] x2, [R2] MAX
-    local qy = my + 242
+    -- 2. Клик по кнопкам быстрого изменения: [L1] /2, [L2] MIN, [R2] MAX, [R1] x2
+    local qy = my + 234
     local qh = 36
     local qw = 138
     local qgap = 14
@@ -189,16 +216,16 @@ function betModal.mousepressed(x, y)
 
     if y >= qy and y <= qy + qh then
         if x >= qStartX and x <= qStartX + qw then
-            betModal.setMin()
-            return true
-        elseif x >= qStartX + qw + qgap and x <= qStartX + 2 * qw + qgap then
             betModal.setHalf()
             return true
+        elseif x >= qStartX + qw + qgap and x <= qStartX + 2 * qw + qgap then
+            betModal.setMin()
+            return true
         elseif x >= qStartX + 2 * (qw + qgap) and x <= qStartX + 3 * qw + 2 * qgap then
-            betModal.setDouble()
+            betModal.setMax()
             return true
         elseif x >= qStartX + 3 * (qw + qgap) and x <= qStartX + 4 * qw + 3 * qgap then
-            betModal.setMax()
+            betModal.setDouble()
             return true
         end
     end
@@ -322,6 +349,14 @@ function betModal.draw()
 
     local pulse = 0.5 + 0.5 * math.sin(betModal.timer * 6)
 
+    local firstSig = 10
+    for k = 1, 10 do
+        if betModal.digits[k] > 0 then
+            firstSig = k
+            break
+        end
+    end
+
     for i = 1, 10 do
         local cx = getCellX(startX, i, cellW, gap, dotW)
         local cy = startY
@@ -355,7 +390,7 @@ function betModal.draw()
         if isSelected then
             love.graphics.setColor(1, 1, 1)
         else
-            if betModal.digits[i] > 0 then
+            if i >= firstSig then
                 love.graphics.setColor(1, 0.88, 0.4)
             else
                 love.graphics.setColor(0.55, 0.42, 0.25)
@@ -389,7 +424,7 @@ function betModal.draw()
     local limW = font and font:getWidth(limStr) or (#limStr * 7)
     love.graphics.print(limStr, mx + mw / 2 - limW / 2, my + 198)
 
-    -- Панель горячих клавиш: [L2] MIN, [L1] /2, [R1] x2, [R2] MAX
+    -- Панель горячих клавиш: [L1] /2, [L2] MIN, [R2] MAX, [R1] x2
     local qy = my + 234
     local qh = 36
     local qw = 138
@@ -404,23 +439,23 @@ function betModal.draw()
         love.graphics.setColor(0.65, 0.42, 0.12)
         love.graphics.rectangle("line", bx + 1.5, by + 1.5, bw - 3, bh - 3, 4)
 
-        -- Тег кнопки ([L1], [R1], [L2], [R2])
+        -- Тег кнопки ([L1], [L2], [R2], [R1])
         love.graphics.setColor(0.78, 0.42, 0.14)
         love.graphics.rectangle("fill", bx + 6, by + 6, 44, bh - 12, 3)
         love.graphics.setColor(1, 0.95, 0.7)
         local tW = font and font:getWidth(tagText) or (#tagText * 8)
         love.graphics.print(tagText, bx + 6 + 22 - tW / 2, by + bh / 2 - 6)
 
-        -- Текст действия (MIN, /2, x2, MAX)
+        -- Текст действия (/2, MIN, MAX, x2)
         love.graphics.setColor(1, 0.88, 0.4)
         local lW = font and font:getWidth(labelText) or (#labelText * 8)
         love.graphics.print(labelText, bx + 54 + (bw - 60) / 2 - lW / 2, by + bh / 2 - 6)
     end
 
-    drawQuickBtn(qStartX, qy, qw, qh, "L2", "MIN")
-    drawQuickBtn(qStartX + qw + qgap, qy, qw, qh, "L1", "/2")
-    drawQuickBtn(qStartX + 2 * (qw + qgap), qy, qw, qh, "R1", "x2")
-    drawQuickBtn(qStartX + 3 * (qw + qgap), qy, qw, qh, "R2", "MAX")
+    drawQuickBtn(qStartX, qy, qw, qh, "L1", "/2")
+    drawQuickBtn(qStartX + qw + qgap, qy, qw, qh, "L2", "MIN")
+    drawQuickBtn(qStartX + 2 * (qw + qgap), qy, qw, qh, "R2", "MAX")
+    drawQuickBtn(qStartX + 3 * (qw + qgap), qy, qw, qh, "R1", "x2")
 
     -- Кнопка [X] CONFIRM
     local by = my + 288
@@ -471,12 +506,6 @@ function betModal.draw()
 
     love.graphics.setColor(1, 1, 1)
     love.graphics.print("BACK", btn2X + 66, by + 16)
-
-    -- Строка подсказки навигации внизу
-    love.graphics.setColor(0.75, 0.62, 0.38)
-    local navHint = "< / > SELECT DIGIT   *   ^ / v ADJUST VALUE"
-    local nhW = font and font:getWidth(navHint) or (#navHint * 7)
-    love.graphics.print(navHint, mx + mw / 2 - nhW / 2, my + 358)
 end
 
 return betModal
