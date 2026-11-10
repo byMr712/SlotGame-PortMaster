@@ -258,6 +258,22 @@ local lastStickX = 0
 local lastStickY = 0
 
 function love.gamepadpressed(joystick, button)
+    if betModal.active then
+        if button == "leftshoulder" then
+            betModal.keypressed("l1")
+            return
+        elseif button == "rightshoulder" then
+            betModal.keypressed("r1")
+            return
+        elseif button == "lefttrigger" then
+            betModal.keypressed("l2")
+            return
+        elseif button == "righttrigger" then
+            betModal.keypressed("r2")
+            return
+        end
+    end
+
     if button == "leftshoulder" then
         handleGlobalInput("prev_tab")
     elseif button == "rightshoulder" then
@@ -299,6 +315,14 @@ end
 -- Fallback для неопознанных generic USB / DirectInput геймпадов
 function love.joystickpressed(joystick, button)
     if joystick:isGamepad() then return end
+
+    if betModal.active then
+        if button == 5 then betModal.keypressed("l1"); return
+        elseif button == 6 then betModal.keypressed("r1"); return
+        elseif button == 7 then betModal.keypressed("l2"); return
+        elseif button == 8 then betModal.keypressed("r2"); return
+        end
+    end
 
     if button == 5 or button == 7 then
         handleGlobalInput("prev_tab")
