@@ -40,15 +40,25 @@ slots.reels = {
 
 slots.chosen = { "stardrop", "stardrop", "stardrop" }
 
-function slots.init()
+function slots.resetAttractMode()
     for r = 1, 3 do
-        local stop = 11 -- Начальный показ: Stardrop по центру
+        local stop = 11 -- Показ 3 топовых Stardrop по центру для привлечения
         slots.reels[r].targetStop = stop
         slots.reels[r].offset = (stop - 1) * CELL_H
         slots.reels[r].stopped = true
         slots.reels[r].stopping = false
+        slots.reels[r].speed = 0
+        slots.reels[r].delay = 0
         slots.chosen[r] = slots.symbols[stop]
     end
+    slots.lastWin = 0
+    slots.winLineTimer = 0
+    slots.tension = false
+    slots.isSpinning = false
+end
+
+function slots.init()
+    slots.resetAttractMode()
 end
 
 function slots.spin()
@@ -378,13 +388,16 @@ function slots.draw()
         love.graphics.setScissor()
         love.graphics.setStencilTest()
 
-        -- 7. Внешняя рамка барабана со скругленными углами
-        love.graphics.setColor(0.08, 0.03, 0.01)
+        -- 7. Внешняя золотая рамка барабана со скругленными углами
+        love.graphics.setColor(0.92, 0.74, 0.22, 0.95)
         love.graphics.setLineWidth(4)
         love.graphics.rectangle("line", rx, startY, reelW, reelH, cornerR)
-        love.graphics.setColor(0.35, 0.18, 0.06, 0.75)
+        love.graphics.setColor(1, 0.92, 0.55, 0.8)
         love.graphics.setLineWidth(2)
         love.graphics.rectangle("line", rx + 1, startY + 1, reelW - 2, reelH - 2, cornerR - 1)
+        love.graphics.setColor(0.35, 0.18, 0.06, 0.9)
+        love.graphics.setLineWidth(1)
+        love.graphics.rectangle("line", rx - 2, startY - 2, reelW + 4, reelH + 4, cornerR + 2)
         love.graphics.setLineWidth(1)
 
         -- Разделительные латунные стойки между барабанами

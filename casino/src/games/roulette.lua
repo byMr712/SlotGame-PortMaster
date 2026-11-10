@@ -18,7 +18,7 @@ roulette.isSpinning = false
 roulette.wheelAngle = 0
 roulette.ballAngle = 0
 roulette.ballRadius = 110
-roulette.history = { { num = 32, won = true }, { num = 15, won = false } }
+roulette.history = {}
 roulette.statusText = ""
 roulette.zoom = 0
 roulette.targetZoom = 0
@@ -28,26 +28,37 @@ roulette.holdTimer = 0
 roulette.curRow = 2
 roulette.curCol = 1
 
+function roulette.resetTable()
+    roulette.history = {}
+    roulette.bets = {}
+    roulette.statusText = ""
+    roulette.curRow = 2
+    roulette.curCol = 1
+    roulette.isSpinning = false
+end
+
 function roulette.getCurrentKey()
-    if roulette.curRow == 0 or roulette.curCol == 0 then
+    if roulette.curRow == 0 then
         return "0"
-    elseif roulette.curRow >= 1 and roulette.curRow <= 3 then
+    end
+    local col = math.max(1, math.min(12, roulette.curCol or 1))
+    if roulette.curRow >= 1 and roulette.curRow <= 3 then
         local rowNums = {
             { "3", "6", "9", "12", "15", "18", "21", "24", "27", "30", "33", "36" },
             { "2", "5", "8", "11", "14", "17", "20", "23", "26", "29", "32", "35" },
             { "1", "4", "7", "10", "13", "16", "19", "22", "25", "28", "31", "34" }
         }
-        return rowNums[roulette.curRow][roulette.curCol]
+        return rowNums[roulette.curRow][col]
     elseif roulette.curRow == 4 then
-        if roulette.curCol <= 4 then return "doz-1"
-        elseif roulette.curCol <= 8 then return "doz-2"
+        if col <= 4 then return "doz-1"
+        elseif col <= 8 then return "doz-2"
         else return "doz-3" end
     elseif roulette.curRow == 5 then
-        if roulette.curCol <= 2 then return "low"
-        elseif roulette.curCol <= 4 then return "even"
-        elseif roulette.curCol <= 6 then return "red"
-        elseif roulette.curCol <= 8 then return "black"
-        elseif roulette.curCol <= 10 then return "odd"
+        if col <= 2 then return "low"
+        elseif col <= 4 then return "even"
+        elseif col <= 6 then return "red"
+        elseif col <= 8 then return "black"
+        elseif col <= 10 then return "odd"
         else return "high" end
     end
     return "0"
@@ -696,16 +707,40 @@ function roulette.keypressed(key)
     if roulette.isSpinning then return end
 
     if key == "up" then
-        roulette.curRow = math.max(0, roulette.curRow - 1)
+        if roulette.curRow == 0 then
+            roulette.curRow = 5
+        else
+            roulette.curRow = roulette.curRow - 1
+        end
         audio.play("click")
     elseif key == "down" then
-        roulette.curRow = math.min(5, roulette.curRow + 1)
+        if roulette.curRow == 5 then
+            roulette.curRow = 0
+        else
+            roulette.curRow = roulette.curRow + 1
+        end
         audio.play("click")
     elseif key == "left" then
-        roulette.curCol = math.max(0, roulette.curCol - 1)
+        if roulette.curRow == 4 then
+            roulette.curCol = math.max(1, (roulette.curCol or 1) - 4)
+        elseif roulette.curRow == 5 then
+            roulette.curCol = math.max(1, (roulette.curCol or 1) - 2)
+        else
+            local c = (roulette.curCol or 1) - 1
+            if c < 1 then c = 12 end
+            roulette.curCol = c
+        end
         audio.play("click")
     elseif key == "right" then
-        roulette.curCol = math.min(12, roulette.curCol + 1)
+        if roulette.curRow == 4 then
+            roulette.curCol = math.min(12, (roulette.curCol or 1) + 4)
+        elseif roulette.curRow == 5 then
+            roulette.curCol = math.min(12, (roulette.curCol or 1) + 2)
+        else
+            local c = (roulette.curCol or 1) + 1
+            if c > 12 then c = 1 end
+            roulette.curCol = c
+        end
         audio.play("click")
     elseif key == "a" then
         roulette.placeBet()

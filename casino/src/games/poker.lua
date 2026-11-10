@@ -33,6 +33,14 @@ local values = {
     { name = "A", val = 14 }
 }
 
+function poker.resetTable()
+    poker.hand = {}
+    poker.holds = { false, false, false, false, false }
+    poker.phase = "deal"
+    poker.focusCard = 1
+    poker.comboText = "PRESS [X] TO DEAL"
+end
+
 function poker.initDeck()
     poker.deck = {}
     for _, s in ipairs(suits) do
@@ -160,7 +168,7 @@ local function drawCard(c, x, y, held, focused)
 
     if focused then
         -- Яркая золотая рамка фокуса карты с мягким ореолом
-        love.graphics.setColor(1, 0.85, 0.15, 0.4)
+        love.graphics.setColor(1, 0.85, 0.15, 0.45)
         love.graphics.setLineWidth(6)
         love.graphics.rectangle("line", x - 4, y - 4, cw + 8, ch + 8, 8)
         love.graphics.setColor(1, 0.90, 0.3)
@@ -170,6 +178,12 @@ local function drawCard(c, x, y, held, focused)
         love.graphics.setLineWidth(1)
         love.graphics.rectangle("line", x - 2, y - 2, cw + 4, ch + 4, 6)
         love.graphics.setLineWidth(1)
+
+        -- Золотой указатель фокуса сверху карты
+        love.graphics.setColor(1, 0.88, 0.2)
+        local arrowX = x + cw / 2
+        local arrowY = y - 8
+        love.graphics.polygon("fill", arrowX - 8, arrowY - 8, arrowX + 8, arrowY - 8, arrowX, arrowY)
     end
 
     local isRed = (c.suit == "heart" or c.suit == "diamond")

@@ -416,6 +416,16 @@ function bj.draw()
     drawGameBtn(840, 570, 140, 40, {0.68, 0.32, 0.1}, {0.32, 0.62, 0.96}, "right", "DEAL")
 end
 
+function bj.resetTable()
+    bj.playerHand = {}
+    bj.dealerHand = {}
+    bj.gameOver = true
+    bj.hasHit = false
+    bj.statusText = ""
+    bj.result = nil
+    bj.state = "betting"
+end
+
 function bj.keypressed(key)
     if key == "up" then
         bj.hit()
@@ -433,12 +443,6 @@ function bj.keypressed(key)
         betModal.open(bj.bet, 100, economy.getBalance(), function(newBet)
             bj.bet = newBet
         end)
-    elseif key == "a" then
-        bj.hit()
-    elseif key == "b" then
-        bj.stand()
-    elseif key == "x" or key == "space" or key == "return" then
-        if bj.gameOver then bj.deal() end
     end
 end
 
