@@ -165,25 +165,27 @@ end
 function slots.draw()
     -- 1. Верхняя латунная плашка таблицы выплат (с аутентичными пиксель-арт спрайтами)
     love.graphics.setColor(0.18, 0.08, 0.03)
-    love.graphics.rectangle("fill", 40, 80, 944, 46, 4)
+    love.graphics.rectangle("fill", 40, 72, 944, 58, 4)
     love.graphics.setColor(0.78, 0.52, 0.12)
     love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", 40, 80, 944, 46, 4)
+    love.graphics.rectangle("line", 40, 72, 944, 58, 4)
     love.graphics.setLineWidth(1)
 
-    -- Элементы таблицы выплат (RTP ~99%, hit rate ~33%)
+    -- Элементы таблицы выплат (увеличенные спрайты и значения xMULT)
     local payItems = {
-        { sym = "stardrop", mult = "x500", label = "JACKPOT", col = {1, 0.88, 0.4}, x = 50 },
-        { sym = "prism", mult = "x100", label = "SHARD", col = {1, 1, 1}, x = 240 },
-        { sym = "ancient", mult = "x30", label = "FRUIT", col = {0.4, 0.8, 1}, x = 430 },
-        { sym = "cherry", mult = "x15", label = "CHERRY", col = {1, 0.45, 0.45}, x = 620 },
-        { sym = "parsnip", mult = "x3", label = "PARSNIP", col = {1, 0.75, 0.2}, x = 810 },
+        { sym = "stardrop", mult = "x500", col = {1, 0.88, 0.4} },
+        { sym = "prism", mult = "x100", col = {1, 1, 1} },
+        { sym = "ancient", mult = "x30", col = {0.4, 0.8, 1} },
+        { sym = "cherry", mult = "x15", col = {1, 0.45, 0.45} },
+        { sym = "parsnip", mult = "x3", col = {1, 0.75, 0.2} },
     }
 
-    for _, item in ipairs(payItems) do
-        sprites.draw(item.sym, item.x + 14, 103, 24)
+    local colW = 944 / 5
+    for i, item in ipairs(payItems) do
+        local colX = 40 + (i - 0.5) * colW
+        sprites.draw(item.sym, colX - 28, 101, 36)
         love.graphics.setColor(item.col)
-        love.graphics.print(item.mult, item.x + 32, 96)
+        love.graphics.print(item.mult, colX + 2, 92, 0, 1.35, 1.35)
     end
 
     -- 2. Внешняя рама автомата (массивное дерево салуна)
