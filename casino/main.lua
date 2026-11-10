@@ -38,11 +38,17 @@ function love.load()
         bj.resetTable()
         poker.resetTable()
         roulette.resetTable()
+        if activeTab == 2 then
+            bj.deal()
+        elseif activeTab == 4 then
+            poker.deal()
+        end
     end)
 end
 
 function love.update(dt)
     betModal.update(dt)
+    bankruptModal.update(dt)
     if activeTab == 1 then
         slots.update(dt)
     elseif activeTab == 2 then

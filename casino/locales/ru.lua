@@ -64,7 +64,7 @@ return {
     controls_action = "[A] Действие",
     controls_spin = "[X] Спин/Раздача",
     bankrupt_title = "Вы проиграли!",
-    bankrupt_msg1 = "Вам снова начислено $10.000",
+    bankrupt_msg1 = "Вам начислено $10.000",
     bankrupt_msg2 = "Попытайте удачу вновь",
     understood = "Понял"
 }

@@ -132,15 +132,20 @@ function bj.update(dt)
 
     -- Авто-раскладка новой партии через 2 секунды после завершения
     if bj.gameOver and bj.autoRestartTimer and bj.autoRestartTimer > 0 then
-        bj.autoRestartTimer = bj.autoRestartTimer - dt
-        if bj.autoRestartTimer <= 0 then
+        if economy.getBalance() <= 0 then
             bj.autoRestartTimer = 0
-            bj.deal()
+        else
+            bj.autoRestartTimer = bj.autoRestartTimer - dt
+            if bj.autoRestartTimer <= 0 then
+                bj.autoRestartTimer = 0
+                bj.deal()
+            end
         end
     end
 end
 
 function bj.deal()
+    if economy.getBalance() <= 0 then return end
     if #bj.deck < 52 then bj.createDeck() end
 
     audio.play("click")
@@ -186,9 +191,8 @@ function bj.hit()
     if not bj.betDeducted then
         if not economy.spend(bj.bet) then
             audio.play("fail")
-            if bankruptModal.check() then
-                -- открыто окно банкротства
-            end
+            bj.autoRestartTimer = 0
+            bankruptModal.check()
             return
         end
         bj.betDeducted = true
@@ -205,11 +209,14 @@ function bj.hit()
         bj.gameOver = true
         bj.statusKey = "bust"
         audio.play("fail")
-        bj.autoRestartTimer = 2.0
-        if bankruptModal.check() then
-            -- открыто окно банкротства
-        elseif bj.bet > economy.getBalance() then
-            bj.bet = math.max(1, economy.getBalance())
+        if economy.getBalance() <= 0 then
+            bj.autoRestartTimer = 0
+            bankruptModal.check()
+        else
+            bj.autoRestartTimer = 2.0
+            if bj.bet > economy.getBalance() then
+                bj.bet = math.max(1, economy.getBalance())
+            end
         end
     end
 end
@@ -220,16 +227,14 @@ function bj.stand()
     if not bj.betDeducted then
         if not economy.spend(bj.bet) then
             audio.play("fail")
-            if bankruptModal.check() then
-                -- открыто окно банкротства
-            end
+            bj.autoRestartTimer = 0
+            bankruptModal.check()
             return
         end
         bj.betDeducted = true
     end
 
     bj.gameOver = true
-    bj.autoRestartTimer = 2.0
 
     local p = bj.calculateScore(bj.playerHand)
     local d = bj.calculateScore(bj.dealerHand)
@@ -262,10 +267,14 @@ function bj.stand()
     end
 
     -- Проверка банкротства или снижение ставки до остатка баланса
-    if bankruptModal.check() then
-        -- открыто окно банкротства
-    elseif bj.bet > economy.getBalance() then
-        bj.bet = math.max(1, economy.getBalance())
+    if economy.getBalance() <= 0 then
+        bj.autoRestartTimer = 0
+        bankruptModal.check()
+    else
+        bj.autoRestartTimer = 2.0
+        if bj.bet > economy.getBalance() then
+            bj.bet = math.max(1, economy.getBalance())
+        end
     end
 end
 

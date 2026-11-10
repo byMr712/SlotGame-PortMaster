@@ -124,6 +124,7 @@ function poker.evaluateHand()
 end
 
 function poker.deal()
+    if economy.getBalance() <= 0 then return end
     poker.initDeck()
     poker.hand = {}
     for i = 1, 5 do
@@ -182,13 +183,14 @@ function poker.doDraw()
     end
 
     poker.phase = "result"
-    poker.autoRestartTimer = 2.0
-
-    -- Проверка банкротства или снижение ставки до остатка баланса
-    if bankruptModal.check() then
-        -- открыто окно банкротства
-    elseif poker.bet > economy.getBalance() then
-        poker.bet = math.max(1, economy.getBalance())
+    if economy.getBalance() <= 0 then
+        poker.autoRestartTimer = 0
+        bankruptModal.check()
+    else
+        poker.autoRestartTimer = 2.0
+        if poker.bet > economy.getBalance() then
+            poker.bet = math.max(1, economy.getBalance())
+        end
     end
 end
 
@@ -200,10 +202,14 @@ function poker.update(dt)
     end
 
     if poker.autoRestartTimer > 0 then
-        poker.autoRestartTimer = poker.autoRestartTimer - dt
-        if poker.autoRestartTimer <= 0 then
+        if economy.getBalance() <= 0 then
             poker.autoRestartTimer = 0
-            poker.deal()
+        else
+            poker.autoRestartTimer = poker.autoRestartTimer - dt
+            if poker.autoRestartTimer <= 0 then
+                poker.autoRestartTimer = 0
+                poker.deal()
+            end
         end
     end
 end
