@@ -18,16 +18,15 @@ slots.winLineTimer = 0
 
 local reelW = 286
 local reelH = 360
-local reelBgCanvas = nil
-local reelShadowOverlay = nil
-local pillarCanvas = nil
+local reelBgImage = nil
+local reelShadowImage = nil
+local pillarImage = nil
 
-local function initReelCanvases()
-    if reelBgCanvas or not love or not love.graphics then return end
+local function initReelImages()
+    if reelBgImage or not love or not love.image or not love.graphics then return end
 
-    -- 1. Цилиндрическая эмалированная металлическая лента барабана (объемный градиент по X)
-    reelBgCanvas = love.graphics.newCanvas(reelW, reelH)
-    love.graphics.setCanvas(reelBgCanvas)
+    -- 1. Цилиндрическая эмалированная лента барабана (CPU-backed ImageData)
+    local bgData = love.image.newImageData(reelW, reelH)
     for x = 0, reelW - 1 do
         local nx = x / (reelW - 1)
         local u = math.abs(nx - 0.5) * 2 -- 0 (центр) .. 1 (край)
@@ -48,38 +47,49 @@ local function initReelCanvases()
             g = 0.50 * (1 - t) + 0.05 * t
             b = 0.35 * (1 - t) + 0.02 * t
         end
-        love.graphics.setColor(r, g, b, 1)
-        love.graphics.rectangle("fill", x, 0, 1, reelH)
+        if x == 5 or x == reelW - 6 then
+            r, g, b = 0.82, 0.62, 0.22
+        end
+        for y = 0, reelH - 1 do
+            bgData:setPixel(x, y, r, g, b, 1)
+        end
     end
-    -- Тонкая золотая окантовка краев ленты
-    love.graphics.setColor(0.82, 0.62, 0.22, 0.4)
-    love.graphics.line(5, 0, 5, reelH)
-    love.graphics.line(reelW - 5, 0, reelW - 5, reelH)
-    love.graphics.setCanvas()
+    reelBgImage = love.graphics.newImage(bgData)
 
-    -- 2. Глубокие тени сводов барабанной ниши сверху и снизу
-    reelShadowOverlay = love.graphics.newCanvas(reelW, reelH)
-    love.graphics.setCanvas(reelShadowOverlay)
-    for y = 0, 95 do
-        local a = math.pow(1 - y / 95, 1.45) * 0.98
-        love.graphics.setColor(0.04, 0.02, 0.01, a)
-        love.graphics.rectangle("fill", 0, y, reelW, 1)
-        love.graphics.rectangle("fill", 0, reelH - 1 - y, reelW, 1)
+    -- 2. Глубокие тени сводов барабанной ниши сверху и снизу (CPU-backed ImageData)
+    local sData = love.image.newImageData(reelW, reelH)
+    for y = 0, reelH - 1 do
+        local a = 0
+        if y < 95 then
+            a = math.pow(1 - y / 95, 1.45) * 0.98
+        elseif y >= reelH - 95 then
+            a = math.pow(1 - (reelH - 1 - y) / 95, 1.45) * 0.98
+        end
+        for x = 0, reelW - 1 do
+            if y <= 1 then
+                sData:setPixel(x, y, 0.85, 0.65, 0.22, 0.7)
+            elseif y >= reelH - 2 then
+                sData:setPixel(x, y, 0.35, 0.18, 0.06, 0.85)
+            else
+                local glareA = 0
+                if x >= y * 0.7 - 20 and x <= y * 0.7 + 60 then
+                    glareA = 0.045
+                end
+                if a > 0 then
+                    sData:setPixel(x, y, 0.04, 0.02, 0.01, a)
+                elseif glareA > 0 then
+                    sData:setPixel(x, y, 1, 1, 1, glareA)
+                else
+                    sData:setPixel(x, y, 0, 0, 0, 0)
+                end
+            end
+        end
     end
-    -- Тонкий стеклянный блик на смотровом стекле
-    love.graphics.setColor(1, 1, 1, 0.045)
-    love.graphics.polygon("fill", 0, 0, 80, 0, reelW, reelH - 80, reelW, reelH)
-    -- Верхняя и нижняя латунные фаски
-    love.graphics.setColor(0.85, 0.65, 0.22, 0.7)
-    love.graphics.rectangle("fill", 0, 0, reelW, 2)
-    love.graphics.setColor(0.35, 0.18, 0.06, 0.85)
-    love.graphics.rectangle("fill", 0, reelH - 2, reelW, 2)
-    love.graphics.setCanvas()
+    reelShadowImage = love.graphics.newImage(sData)
 
-    -- 3. Вертикальная литая латунная колонна-разделитель (14x360)
+    -- 3. Вертикальная литая латунная колонна-стойка (CPU-backed ImageData, 14x360)
     local pw = 14
-    pillarCanvas = love.graphics.newCanvas(pw, reelH)
-    love.graphics.setCanvas(pillarCanvas)
+    local pData = love.image.newImageData(pw, reelH)
     for px = 0, pw - 1 do
         local u = px / (pw - 1)
         local cr, cg, cb
@@ -99,22 +109,19 @@ local function initReelCanvases()
             cg = (234 * (1 - t) + 18 * t) / 255
             cb = (163 * (1 - t) + 4 * t) / 255
         end
-        love.graphics.setColor(cr, cg, cb, 1)
-        love.graphics.rectangle("fill", px, 0, 1, reelH)
+        for py = 0, reelH - 1 do
+            if py <= 2 then
+                pData:setPixel(px, py, 1, 0.92, 0.64, 1)
+            elseif py >= reelH - 3 then
+                pData:setPixel(px, py, 0.2, 0.08, 0.02, 1)
+            elseif (py % 24 == 0 or py % 24 == 1) and px >= 3 and px <= pw - 4 then
+                pData:setPixel(px, py, 1, 0.92, 0.6, 0.8)
+            else
+                pData:setPixel(px, py, cr, cg, cb, 1)
+            end
+        end
     end
-    -- Горизонтальные фаски и заклепки каждые 24px
-    for py = 12, reelH - 12, 24 do
-        love.graphics.setColor(1, 0.92, 0.6, 0.7)
-        love.graphics.rectangle("fill", 3, py, pw - 6, 2)
-        love.graphics.setColor(0.15, 0.06, 0.02, 0.8)
-        love.graphics.rectangle("fill", 3, py + 2, pw - 6, 1)
-    end
-    -- Верхняя и нижняя золотая заглушка
-    love.graphics.setColor(1, 0.92, 0.64, 1)
-    love.graphics.rectangle("fill", 0, 0, pw, 3)
-    love.graphics.setColor(0.2, 0.08, 0.02, 1)
-    love.graphics.rectangle("fill", 0, reelH - 3, pw, 3)
-    love.graphics.setCanvas()
+    pillarImage = love.graphics.newImage(pData)
 end
 
 -- 24 стопа на барабан (RNG лента: сбалансированное казино-распределение)
@@ -320,7 +327,7 @@ function slots.evaluateWin()
 end
 
 function slots.draw()
-    initReelCanvases()
+    initReelImages()
 
     -- 1. Верхняя латунная плашка таблицы выплат (с аутентичными пиксель-арт спрайтами)
     ui.drawBrassPlaque(28, 92, 968, 60, 4)
@@ -387,9 +394,9 @@ function slots.draw()
         love.graphics.setStencilTest("greater", 0)
 
         -- 1. Цилиндрическая эмалированная металлическая лента
-        if reelBgCanvas then
+        if reelBgImage then
             love.graphics.setColor(1, 1, 1, 1)
-            love.graphics.draw(reelBgCanvas, rx, startY)
+            love.graphics.draw(reelBgImage, rx, startY)
         end
 
         -- 2. Цилиндрическая проекция ленты символов и 3D латунных ребер
@@ -456,9 +463,9 @@ function slots.draw()
         end
 
         -- 3. Верхняя и нижняя глубокие цилиндрические тени смотрового стекла
-        if reelShadowOverlay then
+        if reelShadowImage then
             love.graphics.setColor(1, 1, 1, 1)
-            love.graphics.draw(reelShadowOverlay, rx, startY)
+            love.graphics.draw(reelShadowImage, rx, startY)
         end
 
         love.graphics.setStencilTest()
@@ -488,9 +495,9 @@ function slots.draw()
         love.graphics.rectangle("fill", px - 3, startY, 3, reelH)
         love.graphics.rectangle("fill", px + 14, startY, 3, reelH)
 
-        if pillarCanvas then
+        if pillarImage then
             love.graphics.setColor(1, 1, 1, 1)
-            love.graphics.draw(pillarCanvas, px, startY)
+            love.graphics.draw(pillarImage, px, startY)
         end
     end
 

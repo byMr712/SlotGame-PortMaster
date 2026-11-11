@@ -9,6 +9,7 @@ local audio = require("src.core.audio")
 local sprites = require("src.core.sprites")
 local fonts = require("src.core.fonts")
 local ui = require("src.core.ui")
+local viewport = require("src.core.viewport")
 local betModal = require("src.core.bet_modal")
 local langModal = require("src.core.lang_modal")
 local bankruptModal = require("src.core.bankrupt_modal")
@@ -16,6 +17,7 @@ local bankruptModal = require("src.core.bankrupt_modal")
 local activeTab = 1 -- 1: Slots (Стартуем всегда со слотов!), 2: BJ, 3: Roulette, 4: Poker
 
 function love.load()
+    viewport.init()
     if love.joystick and love.joystick.loadGamepadMappings then
         pcall(function()
             if love.filesystem and love.filesystem.getInfo and love.filesystem.getInfo("gamecontrollerdb.txt") then
@@ -68,6 +70,8 @@ function love.update(dt)
 end
 
 function love.draw()
+    viewport.startRender()
+
     -- 1. Фоновое дерево салуна и фактурное зеленое сукно
     ui.drawCabinet()
     ui.drawFelt(16, 80, 992, 672)
@@ -150,6 +154,8 @@ function love.draw()
     betModal.draw()
     langModal.draw()
     bankruptModal.draw()
+
+    viewport.endRender()
 end
 
 local function handleGlobalInput(action)
@@ -362,9 +368,14 @@ function love.joystickremoved(joystick)
     audio.play("click")
 end
 
+function love.resize(w, h)
+    viewport.updateDimensions(w, h)
+end
+
 -- Обработка кликов мыши / тачскрина
-function love.mousepressed(x, y, button)
+function love.mousepressed(screenX, screenY, button)
     if button ~= 1 then return end
+    local x, y = viewport.toVirtual(screenX, screenY)
 
     -- 1. Модальные окна имеют абсолютный приоритет
     if bankruptModal.active then

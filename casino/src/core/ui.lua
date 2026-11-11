@@ -1,32 +1,24 @@
 local ui = {}
 local fonts = require("src.core.fonts")
 
-local feltCanvas = nil
+local feltImage = nil
 
 function ui.init()
-    if feltCanvas then return end
-    if not love or not love.graphics then return end
+    if feltImage then return end
+    if not love or not love.image or not love.graphics then return end
 
-    -- Pre-render felt texture canvas: 992x672
+    -- CPU-backed ImageData texture for felt (992x672) - immune to OpenGL context recreation
     local fw, fh = 992, 672
-    feltCanvas = love.graphics.newCanvas(fw, fh)
-    love.graphics.setCanvas(feltCanvas)
-    -- Base deep saloon felt #0b2915
-    love.graphics.clear(11/255, 41/255, 21/255, 1)
-    
-    -- Stitched micro-dot grid: #103d1f
-    love.graphics.setColor(16/255, 61/255, 31/255, 0.95)
-    local points = {}
-    for py = 0, fh, 8 do
-        for px = 0, fw, 8 do
-            table.insert(points, px + 0.5)
-            table.insert(points, py + 0.5)
-            table.insert(points, px + 4.5)
-            table.insert(points, py + 4.5)
+    local feltData = love.image.newImageData(fw, fh)
+    feltData:mapPixel(function(x, y, r, g, b, a)
+        if (x % 8 == 0 and y % 8 == 0) or (x % 8 == 4 and y % 8 == 4) then
+            return 16/255, 61/255, 31/255, 1 -- #103d1f micro-dot
+        else
+            return 11/255, 41/255, 21/255, 1 -- #0b2915 deep felt
         end
-    end
-    love.graphics.points(points)
-    love.graphics.setCanvas()
+    end)
+    feltImage = love.graphics.newImage(feltData)
+    feltImage:setFilter("nearest", "nearest")
 end
 
 function ui.drawCabinet()
@@ -49,16 +41,16 @@ function ui.drawCabinet()
 end
 
 function ui.drawFelt(x, y, w, h)
-    if not feltCanvas then ui.init() end
+    if not feltImage then ui.init() end
 
     -- Inset felt drop shadow/border #140702
     love.graphics.setColor(20/255, 7/255, 2/255, 1)
     love.graphics.rectangle("fill", x - 4, y - 4, w + 8, h + 8, 6)
 
-    -- Draw pre-rendered textured felt
-    if feltCanvas then
+    -- Draw textured felt
+    if feltImage then
         love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.draw(feltCanvas, x, y)
+        love.graphics.draw(feltImage, x, y)
     else
         love.graphics.setColor(11/255, 41/255, 21/255, 1)
         love.graphics.rectangle("fill", x, y, w, h, 4)
