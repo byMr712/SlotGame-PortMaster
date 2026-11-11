@@ -4,6 +4,8 @@ local economy = require("src.core.economy")
 local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
 local sprites = require("src.core.sprites")
+local fonts = require("src.core.fonts")
+local ui = require("src.core.ui")
 local betModal = require("src.core.bet_modal")
 local bankruptModal = require("src.core.bankrupt_modal")
 
@@ -13,6 +15,107 @@ slots.isSpinning = false
 slots.tension = false
 slots.winPulse = 0
 slots.winLineTimer = 0
+
+local reelW = 286
+local reelH = 360
+local reelBgCanvas = nil
+local reelShadowOverlay = nil
+local pillarCanvas = nil
+
+local function initReelCanvases()
+    if reelBgCanvas or not love or not love.graphics then return end
+
+    -- 1. Цилиндрическая эмалированная металлическая лента барабана (объемный градиент по X)
+    reelBgCanvas = love.graphics.newCanvas(reelW, reelH)
+    love.graphics.setCanvas(reelBgCanvas)
+    for x = 0, reelW - 1 do
+        local nx = x / (reelW - 1)
+        local u = math.abs(nx - 0.5) * 2 -- 0 (центр) .. 1 (край)
+        local r, g, b
+        if u < 0.65 then
+            local t = u / 0.65
+            r = 1.0 * (1 - t) + 0.98 * t
+            g = 1.0 * (1 - t) + 0.95 * t
+            b = 1.0 * (1 - t) + 0.88 * t
+        elseif u < 0.88 then
+            local t = (u - 0.65) / 0.23
+            r = 0.98 * (1 - t) + 0.61 * t
+            g = 0.95 * (1 - t) + 0.50 * t
+            b = 0.88 * (1 - t) + 0.35 * t
+        else
+            local t = (u - 0.88) / 0.12
+            r = 0.61 * (1 - t) + 0.11 * t
+            g = 0.50 * (1 - t) + 0.05 * t
+            b = 0.35 * (1 - t) + 0.02 * t
+        end
+        love.graphics.setColor(r, g, b, 1)
+        love.graphics.rectangle("fill", x, 0, 1, reelH)
+    end
+    -- Тонкая золотая окантовка краев ленты
+    love.graphics.setColor(0.82, 0.62, 0.22, 0.4)
+    love.graphics.line(5, 0, 5, reelH)
+    love.graphics.line(reelW - 5, 0, reelW - 5, reelH)
+    love.graphics.setCanvas()
+
+    -- 2. Глубокие тени сводов барабанной ниши сверху и снизу
+    reelShadowOverlay = love.graphics.newCanvas(reelW, reelH)
+    love.graphics.setCanvas(reelShadowOverlay)
+    for y = 0, 95 do
+        local a = math.pow(1 - y / 95, 1.45) * 0.98
+        love.graphics.setColor(0.04, 0.02, 0.01, a)
+        love.graphics.rectangle("fill", 0, y, reelW, 1)
+        love.graphics.rectangle("fill", 0, reelH - 1 - y, reelW, 1)
+    end
+    -- Тонкий стеклянный блик на смотровом стекле
+    love.graphics.setColor(1, 1, 1, 0.045)
+    love.graphics.polygon("fill", 0, 0, 80, 0, reelW, reelH - 80, reelW, reelH)
+    -- Верхняя и нижняя латунные фаски
+    love.graphics.setColor(0.85, 0.65, 0.22, 0.7)
+    love.graphics.rectangle("fill", 0, 0, reelW, 2)
+    love.graphics.setColor(0.35, 0.18, 0.06, 0.85)
+    love.graphics.rectangle("fill", 0, reelH - 2, reelW, 2)
+    love.graphics.setCanvas()
+
+    -- 3. Вертикальная литая латунная колонна-разделитель (14x360)
+    local pw = 14
+    pillarCanvas = love.graphics.newCanvas(pw, reelH)
+    love.graphics.setCanvas(pillarCanvas)
+    for px = 0, pw - 1 do
+        local u = px / (pw - 1)
+        local cr, cg, cb
+        if u < 0.2 then
+            local t = u / 0.2
+            cr = (42 * (1 - t) + 110 * t) / 255
+            cg = (18 * (1 - t) + 59 * t) / 255
+            cb = (4 * (1 - t) + 8 * t) / 255
+        elseif u < 0.55 then
+            local t = (u - 0.2) / 0.35
+            cr = (110 * (1 - t) + 255 * t) / 255
+            cg = (59 * (1 - t) + 234 * t) / 255
+            cb = (8 * (1 - t) + 163 * t) / 255
+        else
+            local t = (u - 0.55) / 0.45
+            cr = (255 * (1 - t) + 42 * t) / 255
+            cg = (234 * (1 - t) + 18 * t) / 255
+            cb = (163 * (1 - t) + 4 * t) / 255
+        end
+        love.graphics.setColor(cr, cg, cb, 1)
+        love.graphics.rectangle("fill", px, 0, 1, reelH)
+    end
+    -- Горизонтальные фаски и заклепки каждые 24px
+    for py = 12, reelH - 12, 24 do
+        love.graphics.setColor(1, 0.92, 0.6, 0.7)
+        love.graphics.rectangle("fill", 3, py, pw - 6, 2)
+        love.graphics.setColor(0.15, 0.06, 0.02, 0.8)
+        love.graphics.rectangle("fill", 3, py + 2, pw - 6, 1)
+    end
+    -- Верхняя и нижняя золотая заглушка
+    love.graphics.setColor(1, 0.92, 0.64, 1)
+    love.graphics.rectangle("fill", 0, 0, pw, 3)
+    love.graphics.setColor(0.2, 0.08, 0.02, 1)
+    love.graphics.rectangle("fill", 0, reelH - 3, pw, 3)
+    love.graphics.setCanvas()
+end
 
 -- 24 стопа на барабан (RNG лента: сбалансированное казино-распределение)
 slots.symbols = {
@@ -217,59 +320,63 @@ function slots.evaluateWin()
 end
 
 function slots.draw()
+    initReelCanvases()
+
     -- 1. Верхняя латунная плашка таблицы выплат (с аутентичными пиксель-арт спрайтами)
-    love.graphics.setColor(0.18, 0.08, 0.03)
-    love.graphics.rectangle("fill", 40, 72, 944, 58, 4)
-    love.graphics.setColor(0.78, 0.52, 0.12)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", 40, 72, 944, 58, 4)
-    love.graphics.setLineWidth(1)
+    ui.drawBrassPlaque(28, 92, 968, 60, 4)
 
     -- Элементы таблицы выплат (увеличенные спрайты и значения xMULT)
     local payItems = {
         { sym = "stardrop", mult = "x500", col = {1, 0.88, 0.4} },
-        { sym = "prism", mult = "x100", col = {1, 1, 1} },
-        { sym = "ancient", mult = "x30", col = {0.4, 0.8, 1} },
-        { sym = "cherry", mult = "x15", col = {1, 0.45, 0.45} },
-        { sym = "parsnip", mult = "x3", col = {1, 0.75, 0.2} },
+        { sym = "prism", mult = "x100", col = {1, 0.98, 0.92} },
+        { sym = "ancient", mult = "x30", col = {0.38, 0.65, 0.98} },
+        { sym = "cherry", mult = "x15", col = {1, 0.42, 0.42} },
+        { sym = "parsnip", mult = "x3", col = {0.96, 0.69, 0.15} },
     }
 
-    local colW = 944 / 5
+    local payFont = fonts.md
+    love.graphics.setFont(payFont)
+    local colW = 968 / 5
     for i, item in ipairs(payItems) do
-        local colX = 40 + (i - 0.5) * colW
-        sprites.draw(item.sym, colX - 28, 101, 36)
+        local colX = 28 + (i - 0.5) * colW
+        sprites.draw(item.sym, colX - 28, 122, 34)
         love.graphics.setColor(item.col)
-        love.graphics.print(item.mult, colX + 2, 92, 0, 1.35, 1.35)
+        love.graphics.print(item.mult, colX + 4, 116)
     end
 
-    -- 2. Внешняя рама автомата (массивное дерево салуна)
-    local reelW = 280
-    local reelH = 360
-    local startX = 64
-    local startY = 142
+    -- 2. Внешняя рама автомата (массивное дерево салуна и ниша барабанов)
+    ui.drawBrassPlaque(28, 166, 968, 462, 6)
 
-    love.graphics.setColor(0.10, 0.04, 0.02)
-    love.graphics.rectangle("fill", 48, startY - 10, 928, reelH + 20, 6)
-    love.graphics.setColor(0.45, 0.22, 0.06)
+    -- Внутренняя темная ниша барабанов
+    love.graphics.setColor(13/255, 5/255, 2/255, 1)
+    love.graphics.rectangle("fill", 40, 178, 944, 438, 12)
+    love.graphics.setColor(20/255, 7/255, 2/255, 1)
     love.graphics.setLineWidth(4)
-    love.graphics.rectangle("line", 48, startY - 10, 928, reelH + 20, 6)
+    love.graphics.rectangle("line", 40, 178, 944, 438, 12)
     love.graphics.setLineWidth(1)
 
+    local startY = 217
     local centerY = startY + reelH / 2
     local cornerR = 18
 
+    local reelPositions = { 42, 368, 694 }
+    local pillarPositions = { 342, 668 }
+
     -- 3. Барабаны
     for r = 1, 3 do
-        local rx = startX + (r - 1) * (reelW + 36)
+        local rx = reelPositions[r]
 
         -- Саспенс-подсветка третьего барабана
         if r == 3 and slots.tension then
-            love.graphics.setColor(1, 0.88, 0.2, 0.75)
-            love.graphics.rectangle("fill", rx - 4, startY - 4, reelW + 8, reelH + 8, cornerR + 4)
+            local pulse = math.sin(love.timer.getTime() * 16) * 0.25 + 0.75
+            love.graphics.setColor(1, 0.88, 0.2, pulse)
+            love.graphics.setLineWidth(6)
+            love.graphics.rectangle("line", rx - 3, startY - 3, reelW + 6, reelH + 6, cornerR + 2)
+            love.graphics.setLineWidth(1)
         end
 
         -- Ниша барабана
-        love.graphics.setColor(0.08, 0.03, 0.01)
+        love.graphics.setColor(0.05, 0.02, 0.01)
         love.graphics.rectangle("fill", rx, startY, reelW, reelH, cornerR)
 
         -- Трафарет со скругленными углами и отсечение
@@ -278,40 +385,19 @@ function slots.draw()
         end
         love.graphics.stencil(reelMask, "replace", 1)
         love.graphics.setStencilTest("greater", 0)
-        love.graphics.setScissor(rx, startY, reelW, reelH)
 
-        -- 1. Цилиндрическая лента барабана с градиентом освещения выпуклого барабана
-        for sy = 0, reelH - 4, 4 do
-            local y = startY + sy
-            local norm = (y + 2 - centerY) / (reelH / 2)
-            local cosY = math.cos(norm * 1.05)
-            local ly = math.max(0.18, math.pow(cosY, 1.4))
-            -- Аутентичный кремовый цвет барабана, плавно переходящий в тень сверху и снизу
-            local cr = 0.965 * ly
-            local cg = 0.937 * (ly * 0.96 + 0.04)
-            local cb = 0.878 * (ly * 0.91 + 0.09)
-            love.graphics.setColor(cr, cg, cb)
-            love.graphics.rectangle("fill", rx, y, reelW, 4)
+        -- 1. Цилиндрическая эмалированная металлическая лента
+        if reelBgCanvas then
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.draw(reelBgCanvas, rx, startY)
         end
 
-        -- 2. Боковые тени и фаски металлической ленты (3D объем ленты барабана)
-        for dx = 0, 16 do
-            local a = math.pow(1 - dx / 16, 1.3) * 0.45
-            love.graphics.setColor(0.08, 0.03, 0.01, a)
-            love.graphics.rectangle("fill", rx + dx, startY, 1, reelH)
-            love.graphics.rectangle("fill", rx + reelW - 1 - dx, startY, 1, reelH)
-        end
-        -- Латунная окантовка края ленты
-        love.graphics.setColor(0.82, 0.62, 0.22, 0.35)
-        love.graphics.line(rx + 5, startY, rx + 5, startY + reelH)
-        love.graphics.line(rx + reelW - 5, startY, rx + reelW - 5, startY + reelH)
-
-        -- 3. Цилиндрическая проекция непрерывной ленты символов и 3D ребер
+        -- 2. Цилиндрическая проекция ленты символов и 3D латунных ребер
         local normOffset = slots.reels[r].offset % STRIP_HEIGHT
         local R = 175
-        local maxAngle = 1.03
+        local maxAngle = 1.05
 
-        -- 3.1 Разделительные литые латунные ребра барабана
+        -- 2.1 Разделительные литые латунные ребра барабана
         for i = 1, NUM_SYMBOLS do
             local divDist = (i - 0.5) * CELL_H - normOffset
             while divDist < -STRIP_HEIGHT / 2 do divDist = divDist + STRIP_HEIGHT end
@@ -343,7 +429,7 @@ function slots.draw()
             end
         end
 
-        -- 3.2 Символы с ракурсным сжатием и освещением цилиндра
+        -- 2.2 Символы с динамическим затемнением цилиндра
         for i = 1, NUM_SYMBOLS do
             local linearDist = (i - 1) * CELL_H - normOffset
             while linearDist < -STRIP_HEIGHT / 2 do linearDist = linearDist + STRIP_HEIGHT end
@@ -357,58 +443,54 @@ function slots.draw()
                 -- Сжатие по вертикали и освещенность цилиндра
                 local scaleY = math.max(0.48, cosTheta)
                 local scaleX = 0.86 + 0.14 * cosTheta
-                local brightness = math.max(0.35, math.pow(cosTheta, 1.4))
+                local distFromCenter = math.abs(projY - centerY)
+                -- Глубокое аутентичное затемнение в тень сверху и снизу
+                local brightness = math.max(0.24, 1.0 - math.pow(distFromCenter / 125, 1.5) * 0.76)
                 local targetSize = 84 * scaleX
 
                 -- Тень символа на цилиндрической поверхности
-                sprites.draw(slots.symbols[i], rx + reelW / 2, projY + 4 * scaleY, targetSize, 0.3 * brightness, scaleY, 0.1)
-                -- Сам 16-битный спрайт с динамическим ракурсным сжатием
+                sprites.draw(slots.symbols[i], rx + reelW / 2, projY + 4 * scaleY, targetSize, 0.35 * brightness, scaleY, 0.08)
+                -- Сам 16-битный спрайт с динамическим ракурсным сжатием и затемнением
                 sprites.draw(slots.symbols[i], rx + reelW / 2, projY, targetSize, 1.0, scaleY, brightness)
             end
         end
 
-        -- 4. Глубокие тени сводов барабанной ниши сверху и снизу (виньетирование кривизны)
-        for d = 0, 70, 2 do
-            local alpha = math.pow(1 - d / 70, 1.6) * 0.92
-            love.graphics.setColor(0.06, 0.02, 0.01, alpha)
-            love.graphics.rectangle("fill", rx, startY + d, reelW, 2)
-            love.graphics.rectangle("fill", rx, startY + reelH - d - 2, reelW, 2)
+        -- 3. Верхняя и нижняя глубокие цилиндрические тени смотрового стекла
+        if reelShadowOverlay then
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.draw(reelShadowOverlay, rx, startY)
         end
 
-        -- 5. Тонкий стеклянный блик на смотровом стекле барабана
-        love.graphics.setColor(1, 1, 1, 0.035)
-        love.graphics.polygon("fill", rx, startY, rx + 80, startY, rx + reelW, startY + reelH - 80, rx + reelW, startY + reelH)
-
-        -- 6. Латунные фаски проема барабана
-        love.graphics.setColor(0.85, 0.65, 0.22, 0.7)
-        love.graphics.rectangle("fill", rx, startY, reelW, 2)
-        love.graphics.setColor(0.35, 0.18, 0.06, 0.85)
-        love.graphics.rectangle("fill", rx, startY + reelH - 2, reelW, 2)
-
-        love.graphics.setScissor()
         love.graphics.setStencilTest()
 
-        -- 7. Внешняя золотая рамка барабана со скругленными углами
-        love.graphics.setColor(0.92, 0.74, 0.22, 0.95)
+        -- 4. Внешняя золотая рамка барабана со скругленными углами
+        -- Темный контур
+        love.graphics.setColor(92/255, 40/255, 14/255, 0.95)
+        love.graphics.setLineWidth(2)
+        love.graphics.rectangle("line", rx - 1, startY - 1, reelW + 2, reelH + 2, cornerR + 1)
+
+        -- Основная золотая рамка #d4af37
+        love.graphics.setColor(212/255, 175/255, 55/255, 1)
         love.graphics.setLineWidth(4)
         love.graphics.rectangle("line", rx, startY, reelW, reelH, cornerR)
-        love.graphics.setColor(1, 0.92, 0.55, 0.8)
-        love.graphics.setLineWidth(2)
-        love.graphics.rectangle("line", rx + 1, startY + 1, reelW - 2, reelH - 2, cornerR - 1)
-        love.graphics.setColor(0.35, 0.18, 0.06, 0.9)
-        love.graphics.setLineWidth(1)
-        love.graphics.rectangle("line", rx - 2, startY - 2, reelW + 4, reelH + 4, cornerR + 2)
-        love.graphics.setLineWidth(1)
 
-        -- Разделительные латунные стойки между барабанами
-        if r < 3 then
-            local colX = rx + reelW + 10
-            love.graphics.setColor(0.15, 0.06, 0.02)
-            love.graphics.rectangle("fill", colX, startY - 4, 16, reelH + 8, 2)
-            love.graphics.setColor(0.85, 0.6, 0.18)
-            love.graphics.rectangle("fill", colX + 3, startY, 10, reelH, 2)
-            love.graphics.setColor(1, 0.92, 0.6)
-            love.graphics.line(colX + 4, startY, colX + 4, startY + reelH)
+        -- Внутренний золотистый блик
+        love.graphics.setColor(255/255, 240/255, 153/255, 0.75)
+        love.graphics.setLineWidth(1)
+        love.graphics.rectangle("line", rx + 2, startY + 2, reelW - 4, reelH - 4, cornerR - 2)
+        love.graphics.setLineWidth(1)
+    end
+
+    -- 3.3 Литые латунные вертикальные колонны-стойки между барабанами
+    for _, px in ipairs(pillarPositions) do
+        -- Боковые тени
+        love.graphics.setColor(0, 0, 0, 0.7)
+        love.graphics.rectangle("fill", px - 3, startY, 3, reelH)
+        love.graphics.rectangle("fill", px + 14, startY, 3, reelH)
+
+        if pillarCanvas then
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.draw(pillarCanvas, px, startY)
         end
     end
 
@@ -417,108 +499,106 @@ function slots.draw()
         local pulse = math.sin(slots.winPulse) * 0.35 + 0.65
         -- Золотая аура выигрыша
         love.graphics.setColor(1, 0.84, 0.1, pulse * 0.9)
-        love.graphics.rectangle("fill", 50, centerY - 4, 924, 8)
+        love.graphics.rectangle("fill", 42, centerY - 4, 940, 8)
         -- Бело-желтая яркая сердцевина
         love.graphics.setColor(1, 1, 0.85, pulse)
-        love.graphics.rectangle("fill", 50, centerY - 1, 924, 2)
+        love.graphics.rectangle("fill", 42, centerY - 1, 940, 2)
 
         -- Маркеры LINE 1 по бокам
         love.graphics.setColor(0.65, 0.12, 0.08, pulse)
-        love.graphics.rectangle("fill", 48, centerY - 14, 46, 28, 4)
-        love.graphics.rectangle("fill", 930, centerY - 14, 46, 28, 4)
+        love.graphics.rectangle("fill", 42, centerY - 14, 46, 28, 4)
+        love.graphics.rectangle("fill", 936, centerY - 14, 46, 28, 4)
         love.graphics.setColor(1, 0.88, 0.4, pulse)
         love.graphics.setLineWidth(2)
-        love.graphics.rectangle("line", 48, centerY - 14, 46, 28, 4)
-        love.graphics.rectangle("line", 930, centerY - 14, 46, 28, 4)
+        love.graphics.rectangle("line", 42, centerY - 14, 46, 28, 4)
+        love.graphics.rectangle("line", 936, centerY - 14, 46, 28, 4)
         love.graphics.setLineWidth(1)
-        love.graphics.print("▶ 1", 58, centerY - 8)
-        love.graphics.print("1 ◀", 940, centerY - 8)
+        love.graphics.setFont(fonts.xs)
+        love.graphics.print("▶ 1", 50, centerY - 6)
+        love.graphics.print("1 ◀", 944, centerY - 6)
     end
 
     -- 5. Нижняя панель управления слотов
-    love.graphics.setColor(0.22, 0.1, 0.04)
-    love.graphics.rectangle("fill", 40, 524, 944, 88, 6)
-    love.graphics.setColor(0.78, 0.52, 0.12)
-    love.graphics.rectangle("line", 40, 524, 944, 88, 6)
+    ui.drawBrassPlaque(28, 644, 968, 68, 4)
 
-    -- Информационные плашки: СТАВКА [Y] и ВЫИГРЫШ
-    love.graphics.setColor(0.12, 0.05, 0.02)
-    love.graphics.rectangle("fill", 60, 544, 270, 48, 4)
-    love.graphics.setColor(0.78, 0.52, 0.12)
-    love.graphics.rectangle("line", 60, 544, 270, 48, 4)
+    -- Плашка СТАВКА [Y]
+    local betX = 44
+    local betY = 652
+    local betW = 210
+    local betH = 52
+    love.graphics.setColor(27/255, 10/255, 4/255, 1)
+    love.graphics.rectangle("fill", betX, betY, betW, betH, 4)
+    love.graphics.setColor(120/255, 79/255, 24/255, 1)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", betX, betY, betW, betH, 4)
+    love.graphics.setLineWidth(1)
 
     -- Желтый значок [Y]
-    local font = love.graphics.getFont()
-    local cx, cy = 80, 568
-    love.graphics.setColor(0.96, 0.78, 0.2)
-    love.graphics.circle("fill", cx, cy, 12)
-    love.graphics.setColor(0.08, 0.03, 0.01)
-    love.graphics.setLineWidth(1.5)
-    love.graphics.circle("line", cx, cy, 12)
-    love.graphics.setLineWidth(1)
-    local kw = font and font:getWidth("Y") or 8
-    local kh = font and font:getHeight() or 14
-    local tx = math.floor(cx - kw / 2)
-    local ty = math.floor(cy - kh / 2)
-    love.graphics.print("Y", tx, ty)
-    love.graphics.print("Y", tx + 1, ty)
+    ui.drawButtonBadge(betX + 24, betY + betH / 2, 13, "Y")
 
-    love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print(i18n.t("bet") .. ":", 100, 550)
-    love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(economy.format(slots.bet), 100, 568)
+    -- Текст СТАВКА и сумма
+    love.graphics.setFont(fonts.xs)
+    love.graphics.setColor(255/255, 234/255, 173/255, 1)
+    love.graphics.print(i18n.t("bet") .. ":", betX + 48, betY + 10)
+    love.graphics.setFont(fonts.md)
+    love.graphics.setColor(1, 0.88, 0.4, 1)
+    love.graphics.print(economy.format(slots.bet), betX + 48, betY + 26)
 
-    love.graphics.setColor(0.12, 0.05, 0.02)
-    love.graphics.rectangle("fill", 360, 544, 220, 48, 4)
-    love.graphics.setColor(0.65, 0.45, 0.15)
-    love.graphics.rectangle("line", 360, 544, 220, 48, 4)
-    love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print(i18n.t("last_win"), 370, 550)
-    if isWin then
-        love.graphics.setColor(0.2, 0.95, 0.4)
-    else
-        love.graphics.setColor(1, 1, 1)
-    end
-    love.graphics.print(economy.format(slots.lastWin), 370, 568)
-
-    -- Кнопка СПИН
-    local spinAlpha = slots.isSpinning and 0.5 or 1.0
-    local bx = 710
-    -- Темный внешний контур и тень
-    love.graphics.setColor(0.08, 0.03, 0.01, spinAlpha)
-    love.graphics.rectangle("fill", bx, 540, 254, 56, 6)
-
-    -- Рубиновый корпус кнопки
-    love.graphics.setColor(0.78, 0.16, 0.10, spinAlpha)
-    love.graphics.rectangle("fill", bx + 3, 543, 248, 50, 4)
-
-    -- Внутренняя золотисто-светлая фаска блика сверху
-    love.graphics.setColor(0.96, 0.45, 0.35, spinAlpha)
+    -- Плашка ВЫИГРЫШ
+    local winX = 380
+    local winY = 652
+    local winW = 220
+    local winH = 52
+    love.graphics.setColor(27/255, 10/255, 4/255, 1)
+    love.graphics.rectangle("fill", winX, winY, winW, winH, 4)
+    love.graphics.setColor(92/255, 40/255, 14/255, 1)
     love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", bx + 4, 544, 246, 48, 4)
+    love.graphics.rectangle("line", winX, winY, winW, winH, 4)
     love.graphics.setLineWidth(1)
+
+    love.graphics.setFont(fonts.xs)
+    love.graphics.setColor(255/255, 234/255, 173/255, 1)
+    local lwLabel = i18n.t("last_win") .. ":"
+    local lwlw = fonts.xs:getWidth(lwLabel)
+    love.graphics.print(lwLabel, math.floor(winX + (winW - lwlw) / 2), winY + 10)
+
+    love.graphics.setFont(fonts.md)
+    local winValStr = economy.format(slots.lastWin)
+    local vlw = fonts.md:getWidth(winValStr)
+    if slots.lastWin > 0 then
+        love.graphics.setColor(52/255, 211/255, 153/255, 1)
+    else
+        love.graphics.setColor(255/255, 248/255, 235/255, 1)
+    end
+    love.graphics.print(winValStr, math.floor(winX + (winW - vlw) / 2), winY + 26)
+
+    -- 3D Рубиновая кнопка СПИН [X]
+    local spinAlpha = slots.isSpinning and 0.55 or 1.0
+    local bx = 724
+    local by = 650
+    local bw = 256
+    local bh = 56
+
+    ui.drawSaloonButtonRed(bx, by, bw, bh, slots.isSpinning, spinAlpha)
 
     -- Золотая круглая кнопка геймпада (X)
-    love.graphics.setColor(0.95, 0.78, 0.25, spinAlpha)
-    love.graphics.circle("fill", bx + 40, 568, 14)
-    love.graphics.setColor(0.15, 0.05, 0.02, spinAlpha)
-    love.graphics.setLineWidth(2)
-    love.graphics.circle("line", bx + 40, 568, 14)
-    love.graphics.setLineWidth(1)
-    local font = love.graphics.getFont()
-    local cx, cy = bx + 40, 568
-    local kw = font and font:getWidth("X") or 8
-    local kh = font and font:getHeight() or 14
-    local tx = math.floor(cx - kw / 2)
-    local ty = math.floor(cy - kh / 2)
-    love.graphics.setColor(0.15, 0.05, 0.02, spinAlpha)
-    love.graphics.print("X", tx, ty)
-    love.graphics.print("X", tx + 1, ty)
+    ui.drawButtonBadge(bx + 30, by + bh / 2, 13, "X", spinAlpha)
 
     -- Текст SPIN!
-    love.graphics.setColor(1, 0.98, 0.92, spinAlpha)
+    local spinFont = fonts.lg
+    love.graphics.setFont(spinFont)
     local spinText = i18n.t("spin") .. "!"
-    love.graphics.print(spinText, bx + 70, 560)
+    local stw = spinFont:getWidth(spinText)
+    local sth = spinFont:getHeight()
+    local textX = math.floor(bx + 54 + (bw - 54 - stw) / 2)
+    local textY = math.floor(by + (bh - sth) / 2)
+
+    -- Тень текста #3b0802
+    love.graphics.setColor(59/255, 8/255, 2/255, spinAlpha)
+    love.graphics.print(spinText, textX + 2, textY + 2)
+    -- Текст белый #fffdf2
+    love.graphics.setColor(255/255, 253/255, 242/255, spinAlpha)
+    love.graphics.print(spinText, textX, textY)
 end
 
 function slots.keypressed(key)
@@ -534,8 +614,8 @@ function slots.keypressed(key)
 end
 
 function slots.mousepressed(x, y)
-    -- Окно ставки [Y]
-    if x >= 40 and x <= 345 and y >= 530 and y <= 610 then
+    -- Окно ставки [Y] (44, 652, 210, 52)
+    if x >= 40 and x <= 265 and y >= 645 and y <= 715 then
         if not slots.isSpinning then
             betModal.open(slots.bet, 100, economy.getBalance(), function(newBet)
                 slots.bet = newBet
@@ -544,8 +624,8 @@ function slots.mousepressed(x, y)
         return true
     end
 
-    -- Кнопка SPIN (710, 540, 254, 56)
-    if x >= 700 and x <= 970 and y >= 535 and y <= 605 then
+    -- Кнопка SPIN (724, 650, 256, 56)
+    if x >= 715 and x <= 990 and y >= 645 and y <= 715 then
         slots.spin()
         return true
     end

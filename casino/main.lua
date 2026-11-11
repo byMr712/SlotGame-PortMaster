@@ -7,6 +7,8 @@ local economy = require("src.core.economy")
 local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
 local sprites = require("src.core.sprites")
+local fonts = require("src.core.fonts")
+local ui = require("src.core.ui")
 local betModal = require("src.core.bet_modal")
 local langModal = require("src.core.lang_modal")
 local bankruptModal = require("src.core.bankrupt_modal")
@@ -22,6 +24,8 @@ function love.load()
         end)
     end
 
+    fonts.init()
+    ui.init()
     sprites.init()
     audio.init()
     slots.init()
@@ -64,120 +68,72 @@ function love.update(dt)
 end
 
 function love.draw()
-    -- 1. Фоновое дерево салуна и зеленое сукно
-    love.graphics.setColor(0.04, 0.02, 0.01)
-    love.graphics.rectangle("fill", 0, 0, 1024, 768)
+    -- 1. Фоновое дерево салуна и фактурное зеленое сукно
+    ui.drawCabinet()
+    ui.drawFelt(16, 80, 992, 672)
 
-    love.graphics.setColor(0.17, 0.07, 0.02)
-    love.graphics.rectangle("fill", 10, 10, 1004, 748, 8)
-    love.graphics.setColor(0.55, 0.26, 0.08)
-    love.graphics.setLineWidth(4)
-    love.graphics.rectangle("line", 10, 10, 1004, 748, 8)
-    love.graphics.setLineWidth(1)
-
-    -- Сукно зала
-    local feltY = 82
-    local feltH = 632
-    love.graphics.setColor(0.05, 0.18, 0.1)
-    love.graphics.rectangle("fill", 24, feltY, 976, feltH, 6)
-    love.graphics.setColor(0.08, 0.28, 0.15)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", 24, feltY, 976, feltH, 6)
-    love.graphics.setLineWidth(1)
-
-    -- 2. Верхняя панель: Вкладки L1/R1 + Баланс (выровнены по бокам вровень с нижним баром: x=40..984, ширина 944)
-    love.graphics.setColor(0.12, 0.05, 0.02)
-    love.graphics.rectangle("fill", 40, 18, 944, 66, 4)
-
-    -- Вкладка залов (широкое окно слева от центра: 464x56 на x=40, y=23)
+    -- 2. Верхняя панель: Вкладки L1/R1 + Баланс (выровнены по бокам: x=20..1004)
     local roomNames = { i18n.t("tab_slots"), i18n.t("tab_bj"), i18n.t("tab_roulette"), i18n.t("tab_poker") }
-    local leftX = 40
-    local winY = 23
-    local winW = 464
-    local winH = 56
+    local winY = 14
+    local winH = 58
+    local boxW = 480
 
-    love.graphics.setColor(0.18, 0.08, 0.03)
-    love.graphics.rectangle("fill", leftX, winY, winW, winH, 4)
-    love.graphics.setColor(0.78, 0.52, 0.12)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", leftX, winY, winW, winH, 4)
-    love.graphics.setLineWidth(1)
+    -- Вкладка залов (широкое окно слева)
+    local leftX = 20
+    ui.drawBrassPlaque(leftX, winY, boxW, winH, 4)
 
-    local btnW = 74
-    local btnH = 42
+    local btnW = 68
+    local btnH = 44
     local btnY = winY + (winH - btnH) / 2
 
     -- Кнопка L1
-    love.graphics.setColor(0.08, 0.03, 0.01)
-    love.graphics.rectangle("fill", leftX + 7, btnY, btnW, btnH, 3)
-    love.graphics.setColor(0.68, 0.32, 0.1)
-    love.graphics.rectangle("fill", leftX + 8, btnY + 1, btnW - 2, btnH - 2, 2)
-    love.graphics.setColor(0.9, 0.5, 0.2)
-    love.graphics.rectangle("line", leftX + 8, btnY + 1, btnW - 2, btnH - 2, 2)
+    ui.drawSaloonButton(leftX + 8, btnY, btnW, btnH, "L1", fonts.md)
 
-    local font = love.graphics.getFont()
-    local fontH = font and font:getHeight() or 12
-    love.graphics.setColor(1, 0.95, 0.7)
-    local l1Str = "L1"
-    local l1w = (font and font:getWidth(l1Str) or 16) * 1.65
-    local l1h = fontH * 1.65
-    love.graphics.print(l1Str, leftX + 7 + btnW / 2 - l1w / 2, btnY + btnH / 2 - l1h / 2, 0, 1.65, 1.65)
-
-    -- Название текущего зала со стрелками ◄   НАЗВАНИЕ   ► (по центру между кнопками)
-    local innerCenter = leftX + winW / 2
+    -- Название текущего зала со стрелками (по центру между кнопками)
+    local innerCenter = leftX + boxW / 2
     local curRoom = roomNames[activeTab]
-    local tw = (font and font:getWidth(curRoom) or (#curRoom * 8)) * 1.7
-    local th = fontH * 1.7
-    local roomTextY = winY + winH / 2 - th / 2
+    local curFont = fonts.lg
+    love.graphics.setFont(curFont)
+    local tw = curFont:getWidth(curRoom)
+    local th = curFont:getHeight()
+    local roomTextY = math.floor(winY + (winH - th) / 2)
 
-    love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print("◄", innerCenter - tw / 2 - 36, roomTextY, 0, 1.55, 1.55)
+    -- Левая золотая стрелка
+    ui.drawArrow(innerCenter - tw / 2 - 20, winY + winH / 2, 10, "left", {1, 0.88, 0.4, 0.95})
 
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.print(curRoom, innerCenter - tw / 2, roomTextY, 0, 1.7, 1.7)
+    -- Название зала с темной тенью #180802
+    love.graphics.setColor(24/255, 8/255, 2/255, 1)
+    love.graphics.print(curRoom, math.floor(innerCenter - tw / 2) + 2, roomTextY + 2)
+    love.graphics.setColor(1, 0.88, 0.4, 1)
+    love.graphics.print(curRoom, math.floor(innerCenter - tw / 2), roomTextY)
 
-    love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print("►", innerCenter + tw / 2 + 18, roomTextY, 0, 1.55, 1.55)
+    -- Правая золотая стрелка
+    ui.drawArrow(innerCenter + tw / 2 + 20, winY + winH / 2, 10, "right", {1, 0.88, 0.4, 0.95})
 
     -- Кнопка R1
-    local r1X = leftX + winW - btnW - 7
-    love.graphics.setColor(0.08, 0.03, 0.01)
-    love.graphics.rectangle("fill", r1X, btnY, btnW, btnH, 3)
-    love.graphics.setColor(0.68, 0.32, 0.1)
-    love.graphics.rectangle("fill", r1X + 1, btnY + 1, btnW - 2, btnH - 2, 2)
-    love.graphics.setColor(0.9, 0.5, 0.2)
-    love.graphics.rectangle("line", r1X + 1, btnY + 1, btnW - 2, btnH - 2, 2)
+    local r1X = leftX + boxW - btnW - 8
+    ui.drawSaloonButton(r1X, btnY, btnW, btnH, "R1", fonts.md)
 
-    love.graphics.setColor(1, 0.95, 0.7)
-    local r1Str = "R1"
-    local r1w = (font and font:getWidth(r1Str) or 16) * 1.65
-    local r1h = fontH * 1.65
-    love.graphics.print(r1Str, r1X + btnW / 2 - r1w / 2, btnY + btnH / 2 - r1h / 2, 0, 1.65, 1.65)
-
-    -- Окно баланса (широкое окно справа, край вровень с нижним баром: x=520, w=464, правый край=984)
-    local balX = 520
-    local balY = winY
-    local balW = 464
-    local balH = winH
-
-    love.graphics.setColor(0.18, 0.08, 0.03)
-    love.graphics.rectangle("fill", balX, balY, balW, balH, 4)
-    love.graphics.setColor(0.78, 0.52, 0.12)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", balX, balY, balW, balH, 4)
-    love.graphics.setLineWidth(1)
+    -- Окно баланса (широкое окно справа)
+    local balX = 524
+    ui.drawBrassPlaque(balX, winY, boxW, winH, 4)
 
     -- Монетка и сумма баланса крупно по центру окна
+    local balFont = fonts.xl
+    love.graphics.setFont(balFont)
     local balStr = economy.getBalanceFormatted()
-    local btw = (font and font:getWidth(balStr) or (#balStr * 8)) * 1.8
-    local bth = fontH * 1.8
+    local btw = balFont:getWidth(balStr)
+    local bth = balFont:getHeight()
     local coinSize = 36
     local totalContentW = coinSize + 16 + btw
-    local contentStartX = balX + (balW - totalContentW) / 2
+    local contentStartX = balX + (boxW - totalContentW) / 2
 
-    sprites.draw("coin", contentStartX + coinSize / 2, balY + balH / 2, coinSize)
-    love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(balStr, contentStartX + coinSize + 16, balY + balH / 2 - bth / 2, 0, 1.8, 1.8)
+    sprites.draw("coin", contentStartX + coinSize / 2, winY + winH / 2, coinSize)
+    -- Тень текста баланса
+    love.graphics.setColor(24/255, 8/255, 2/255, 1)
+    love.graphics.print(balStr, math.floor(contentStartX + coinSize + 16) + 2, math.floor(winY + (winH - bth) / 2) + 2)
+    love.graphics.setColor(1, 0.88, 0.4, 1)
+    love.graphics.print(balStr, math.floor(contentStartX + coinSize + 16), math.floor(winY + (winH - bth) / 2))
 
     -- 3. Отрисовка активной комнаты
     if activeTab == 1 then
@@ -427,15 +383,15 @@ function love.mousepressed(x, y, button)
     end
 
     -- 2. Верхняя панель: Переключение залов и баланс
-    if y >= 18 and y <= 80 then
-        if x >= 34 and x <= 499 then
-            if x <= 267 then
+    if y >= 10 and y <= 74 then
+        if x >= 22 and x <= 506 then
+            if x <= 265 then
                 handleGlobalInput("prev_tab")
             else
                 handleGlobalInput("next_tab")
             end
             return
-        elseif x >= 525 and x <= 990 then
+        elseif x >= 518 and x <= 1002 then
             handleGlobalInput("currency")
             return
         end

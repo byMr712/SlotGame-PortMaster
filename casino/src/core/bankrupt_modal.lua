@@ -93,16 +93,10 @@ function bankruptModal.mousepressed(x, y)
     return true
 end
 
-local titleFont = nil
-local msgFont = nil
+local fonts = require("src.core.fonts")
+
 local function getFonts()
-    if not titleFont and love.graphics and love.graphics.newFont then
-        pcall(function()
-            titleFont = love.graphics.newFont(24)
-            msgFont = love.graphics.newFont(16)
-        end)
-    end
-    return titleFont, msgFont
+    return fonts.get(20), fonts.get(13)
 end
 
 function bankruptModal.draw()

@@ -8,7 +8,14 @@ function economy.getBalance()
 end
 
 function economy.format(amount)
-    return string.format("$%d", amount or 0)
+    local n = math.floor(amount or 0)
+    local s = tostring(math.abs(n))
+    local formatted = s:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+    if n < 0 then
+        return string.format("-$%s", formatted)
+    else
+        return string.format("$%s", formatted)
+    end
 end
 
 function economy.getBalanceFormatted()
