@@ -42,3 +42,10 @@ luac.out
 
 *.love
 dist/
+mockup_screenshots/0_lang_modal.png
+mockup_screenshots/1_slots.png
+mockup_screenshots/2_blackjack.png
+mockup_screenshots/3_roulette.png
+mockup_screenshots/4_poker.png
+/mockup_dump
+/mockup_screenshots

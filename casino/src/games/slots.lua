@@ -16,8 +16,8 @@ slots.tension = false
 slots.winPulse = 0
 slots.winLineTimer = 0
 
-local reelW = 286
-local reelH = 360
+local reelW = 292
+local reelH = 438
 local reelBgImage = nil
 local reelShadowImage = nil
 local pillarImage = nil
@@ -25,97 +25,131 @@ local pillarImage = nil
 local function initReelImages()
     if reelBgImage or not love or not love.image or not love.graphics then return end
 
-    -- 1. Цилиндрическая эмалированная лента барабана (CPU-backed ImageData)
+    -- 1. Цилиндрическая эмалированная лента барабана (Точное соответствие CSS HTML-макета)
     local bgData = love.image.newImageData(reelW, reelH)
+    local stops = {
+        { p = 0.000, r = 28/255,  g = 12/255,  b = 4/255 },
+        { p = 0.025, r = 68/255,  g = 35/255,  b = 12/255 },
+        { p = 0.065, r = 156/255, g = 128/255, b = 88/255 },
+        { p = 0.160, r = 248/255, g = 240/255, b = 221/255 },
+        { p = 0.500, r = 255/255, g = 255/255, b = 255/255 },
+        { p = 0.840, r = 250/255, g = 242/255, b = 223/255 },
+        { p = 0.935, r = 148/255, g = 120/255, b = 81/255 },
+        { p = 0.975, r = 61/255,  g = 30/255,  b = 9/255 },
+        { p = 1.000, r = 20/255,  g = 5/255,   b = 1/255 },
+    }
+
+    local colProfile = {}
     for x = 0, reelW - 1 do
-        local nx = x / (reelW - 1)
-        local u = math.abs(nx - 0.5) * 2 -- 0 (центр) .. 1 (край)
-        local r, g, b
-        if u < 0.65 then
-            local t = u / 0.65
-            r = 1.0 * (1 - t) + 0.98 * t
-            g = 1.0 * (1 - t) + 0.95 * t
-            b = 1.0 * (1 - t) + 0.88 * t
-        elseif u < 0.88 then
-            local t = (u - 0.65) / 0.23
-            r = 0.98 * (1 - t) + 0.61 * t
-            g = 0.95 * (1 - t) + 0.50 * t
-            b = 0.88 * (1 - t) + 0.35 * t
-        else
-            local t = (u - 0.88) / 0.12
-            r = 0.61 * (1 - t) + 0.11 * t
-            g = 0.50 * (1 - t) + 0.05 * t
-            b = 0.35 * (1 - t) + 0.02 * t
+        local u = x / (reelW - 1)
+        local cr, cg, cb = stops[#stops].r, stops[#stops].g, stops[#stops].b
+        for s = 1, #stops - 1 do
+            if u >= stops[s].p and u <= stops[s + 1].p then
+                local t = (u - stops[s].p) / (stops[s + 1].p - stops[s].p)
+                cr = stops[s].r * (1 - t) + stops[s + 1].r * t
+                cg = stops[s].g * (1 - t) + stops[s + 1].g * t
+                cb = stops[s].b * (1 - t) + stops[s + 1].b * t
+                break
+            end
         end
-        if x == 5 or x == reelW - 6 then
-            r, g, b = 0.82, 0.62, 0.22
-        end
-        for y = 0, reelH - 1 do
-            bgData:setPixel(x, y, r, g, b, 1)
+        colProfile[x] = { cr, cg, cb }
+    end
+
+    for y = 0, reelH - 1 do
+        for x = 0, reelW - 1 do
+            local c = colProfile[x]
+            bgData:setPixel(x, y, c[1], c[2], c[3], 1)
         end
     end
     reelBgImage = love.graphics.newImage(bgData)
 
-    -- 2. Глубокие тени сводов барабанной ниши сверху и снизу (CPU-backed ImageData)
+    -- 2. Глубокие тени сводов барабанной ниши сверху и снизу + стекло (Точное соответствие CSS HTML-макета)
     local sData = love.image.newImageData(reelW, reelH)
     for y = 0, reelH - 1 do
-        local a = 0
-        if y < 95 then
-            a = math.pow(1 - y / 95, 1.45) * 0.98
-        elseif y >= reelH - 95 then
-            a = math.pow(1 - (reelH - 1 - y) / 95, 1.45) * 0.98
+        local ny = y / (reelH - 1)
+        local vertA = 0
+        if ny < 0.35 then
+            -- Верхняя тень кривизны цилиндра барабана
+            local t = ny / 0.35
+            vertA = math.pow(1 - t, 1.25) * 0.96
+        elseif ny > 0.65 then
+            -- Нижняя тень кривизны цилиндра барабана
+            local t = (ny - 0.65) / 0.35
+            vertA = math.pow(t, 1.25) * 0.96
         end
+
         for x = 0, reelW - 1 do
-            if y <= 1 then
-                sData:setPixel(x, y, 0.85, 0.65, 0.22, 0.7)
-            elseif y >= reelH - 2 then
-                sData:setPixel(x, y, 0.35, 0.18, 0.06, 0.85)
+            local nx = x / (reelW - 1)
+            -- Боковая фаска краев барабана
+            local sideA = 0
+            if nx < 0.08 then
+                sideA = (1 - nx / 0.08) * 0.85
+            elseif nx > 0.92 then
+                sideA = ((nx - 0.92) / 0.08) * 0.85
+            end
+
+            local darkA = math.min(0.98, vertA + sideA * (1 - vertA * 0.4))
+
+            -- Блик смотрового стекла автомата
+            local diag = (x / reelW) * 0.65 + (y / reelH) * 0.35
+            local glareA = 0
+            if diag < 0.28 then
+                glareA = (1 - diag / 0.28) * 0.14
+            elseif diag >= 0.48 and diag <= 0.62 then
+                glareA = math.sin((diag - 0.48) / 0.14 * math.pi) * 0.07
+            end
+
+            if darkA > 0.01 then
+                sData:setPixel(x, y, 7/255, 2/255, 1/255, darkA)
+            elseif glareA > 0.005 then
+                sData:setPixel(x, y, 1, 1, 1, glareA)
             else
-                local glareA = 0
-                if x >= y * 0.7 - 20 and x <= y * 0.7 + 60 then
-                    glareA = 0.045
-                end
-                if a > 0 then
-                    sData:setPixel(x, y, 0.04, 0.02, 0.01, a)
-                elseif glareA > 0 then
-                    sData:setPixel(x, y, 1, 1, 1, glareA)
-                else
-                    sData:setPixel(x, y, 0, 0, 0, 0)
-                end
+                sData:setPixel(x, y, 0, 0, 0, 0)
             end
         end
     end
     reelShadowImage = love.graphics.newImage(sData)
 
-    -- 3. Вертикальная литая латунная колонна-стойка (CPU-backed ImageData, 14x360)
+    -- 3. Вертикальная литая латунная колонна-стойка (14x438, точный CSS HTML-макета)
     local pw = 14
     local pData = love.image.newImageData(pw, reelH)
     for px = 0, pw - 1 do
         local u = px / (pw - 1)
         local cr, cg, cb
-        if u < 0.2 then
-            local t = u / 0.2
+        if u < 0.15 then
+            local t = u / 0.15
             cr = (42 * (1 - t) + 110 * t) / 255
             cg = (18 * (1 - t) + 59 * t) / 255
             cb = (4 * (1 - t) + 8 * t) / 255
-        elseif u < 0.55 then
-            local t = (u - 0.2) / 0.35
-            cr = (110 * (1 - t) + 255 * t) / 255
-            cg = (59 * (1 - t) + 234 * t) / 255
-            cb = (8 * (1 - t) + 163 * t) / 255
+        elseif u < 0.50 then
+            local t = (u - 0.15) / 0.35
+            cr = (110 * (1 - t) + 200 * t) / 255
+            cg = (59 * (1 - t) + 142 * t) / 255
+            cb = (8 * (1 - t) + 40 * t) / 255
+        elseif u < 0.60 then
+            local t = (u - 0.50) / 0.10
+            cr = (200 * (1 - t) + 255 * t) / 255
+            cg = (142 * (1 - t) + 234 * t) / 255
+            cb = (40 * (1 - t) + 163 * t) / 255
+        elseif u < 0.85 then
+            local t = (u - 0.60) / 0.25
+            cr = (255 * (1 - t) + 110 * t) / 255
+            cg = (234 * (1 - t) + 59 * t) / 255
+            cb = (163 * (1 - t) + 8 * t) / 255
         else
-            local t = (u - 0.55) / 0.45
-            cr = (255 * (1 - t) + 42 * t) / 255
-            cg = (234 * (1 - t) + 18 * t) / 255
-            cb = (163 * (1 - t) + 4 * t) / 255
+            local t = (u - 0.85) / 0.15
+            cr = (110 * (1 - t) + 42 * t) / 255
+            cg = (59 * (1 - t) + 18 * t) / 255
+            cb = (8 * (1 - t) + 4 * t) / 255
         end
+
         for py = 0, reelH - 1 do
             if py <= 2 then
-                pData:setPixel(px, py, 1, 0.92, 0.64, 1)
+                pData:setPixel(px, py, 255/255, 234/255, 163/255, 1)
             elseif py >= reelH - 3 then
-                pData:setPixel(px, py, 0.2, 0.08, 0.02, 1)
-            elseif (py % 24 == 0 or py % 24 == 1) and px >= 3 and px <= pw - 4 then
-                pData:setPixel(px, py, 1, 0.92, 0.6, 0.8)
+                pData:setPixel(px, py, 42/255, 18/255, 4/255, 1)
+            elseif (py >= 10 and py <= reelH - 10) and (py % 28 < 4) and (px >= 3 and px <= pw - 4) then
+                pData:setPixel(px, py, 255/255, 232/255, 153/255, 0.75)
             else
                 pData:setPixel(px, py, cr, cg, cb, 1)
             end
@@ -138,7 +172,7 @@ for i, sym in ipairs(slots.symbols) do
     table.insert(symbolStops[sym], i)
 end
 
-local CELL_H = 120
+local CELL_H = 146
 local NUM_SYMBOLS = #slots.symbols
 local STRIP_HEIGHT = NUM_SYMBOLS * CELL_H
 
@@ -215,6 +249,8 @@ function slots.spin()
         slots.reels[r].stopped = false
         slots.reels[r].settling = false
         slots.reels[r].settleTimer = 0
+        slots.reels[r].recoilTimer = 0.12
+        slots.reels[r].initialOffset = slots.reels[r].offset
         slots.reels[r].speed = 350
         slots.reels[r].targetSpeed = 1550
         slots.reels[r].delay = 0.85 + (r - 1) * 0.75
@@ -243,7 +279,12 @@ function slots.update(dt)
         if not reel.stopped then
             allStopped = false
 
-            if reel.settling then
+            if (reel.recoilTimer or 0) > 0 then
+                reel.recoilTimer = reel.recoilTimer - dt
+                local p = 1 - math.max(0, reel.recoilTimer) / 0.12
+                -- Механический рывок вверх в начале спина
+                reel.offset = reel.initialOffset - math.sin(p * math.pi) * 14
+            elseif reel.settling then
                 reel.settleTimer = reel.settleTimer + dt
                 local t = reel.settleTimer
                 -- Плавный пружинящий отскок при посадке
@@ -264,13 +305,14 @@ function slots.update(dt)
                     local currentNorm = reel.offset % STRIP_HEIGHT
                     local diff = (targetOffset - currentNorm) % STRIP_HEIGHT
 
-                    if diff > 0 and diff < 36 then
+                    local step = reel.speed * dt
+                    if diff > 0 and diff <= math.max(45, step * 1.5) then
                         reel.baseOffset = reel.offset + diff
                         reel.settling = true
                         reel.settleTimer = 0
                         audio.play("tick")
                     else
-                        reel.speed = math.max(350, reel.speed - dt * 2000)
+                        reel.speed = math.max(450, reel.speed - dt * 1800)
                         reel.offset = reel.offset + reel.speed * dt
                     end
                 else
@@ -330,44 +372,46 @@ function slots.draw()
     initReelImages()
 
     -- 1. Верхняя латунная плашка таблицы выплат (с аутентичными пиксель-арт спрайтами)
-    ui.drawBrassPlaque(28, 92, 968, 60, 4)
+    ui.drawBrassPlaque(34, 90, 956, 64, 4)
 
     -- Элементы таблицы выплат (увеличенные спрайты и значения xMULT)
     local payItems = {
-        { sym = "stardrop", mult = "x500", col = {1, 0.88, 0.4} },
-        { sym = "prism", mult = "x100", col = {1, 0.98, 0.92} },
-        { sym = "ancient", mult = "x30", col = {0.38, 0.65, 0.98} },
-        { sym = "cherry", mult = "x15", col = {1, 0.42, 0.42} },
-        { sym = "parsnip", mult = "x3", col = {0.96, 0.69, 0.15} },
+        { sym = "stardrop", mult = "x500", col = {246/255, 208/255, 99/255} },
+        { sym = "prism", mult = "x100", col = {255/255, 249/255, 223/255} },
+        { sym = "ancient", mult = "x30", col = {96/255, 165/255, 250/255} },
+        { sym = "cherry", mult = "x15", col = {255/255, 107/255, 107/255} },
+        { sym = "parsnip", mult = "x3", col = {245/255, 175/255, 37/255} },
     }
 
-    local payFont = fonts.md
+    local payFont = fonts.sm
     love.graphics.setFont(payFont)
-    local colW = 968 / 5
+    local colW = 956 / 5
     for i, item in ipairs(payItems) do
-        local colX = 28 + (i - 0.5) * colW
-        sprites.draw(item.sym, colX - 28, 122, 34)
+        local colX = 34 + (i - 0.5) * colW
+        local sy = 122
+
+        sprites.draw(item.sym, colX - 28, sy, 34)
         love.graphics.setColor(item.col)
-        love.graphics.print(item.mult, colX + 4, 116)
+        love.graphics.print(item.mult, colX + 4, sy - 5)
     end
 
     -- 2. Внешняя рама автомата (массивное дерево салуна и ниша барабанов)
-    ui.drawBrassPlaque(28, 166, 968, 462, 6)
+    ui.drawBrassPlaque(34, 162, 956, 506, 6)
 
     -- Внутренняя темная ниша барабанов
     love.graphics.setColor(13/255, 5/255, 2/255, 1)
-    love.graphics.rectangle("fill", 40, 178, 944, 438, 12)
+    love.graphics.rectangle("fill", 46, 174, 932, 482, 16)
     love.graphics.setColor(20/255, 7/255, 2/255, 1)
     love.graphics.setLineWidth(4)
-    love.graphics.rectangle("line", 40, 178, 944, 438, 12)
+    love.graphics.rectangle("line", 46, 174, 932, 482, 16)
     love.graphics.setLineWidth(1)
 
-    local startY = 217
+    local startY = 196
     local centerY = startY + reelH / 2
     local cornerR = 18
 
-    local reelPositions = { 42, 368, 694 }
-    local pillarPositions = { 342, 668 }
+    local reelPositions = { 58, 364, 670 }
+    local pillarPositions = { 350, 656 }
 
     -- 3. Барабаны
     for r = 1, 3 do
@@ -399,23 +443,23 @@ function slots.draw()
             love.graphics.draw(reelBgImage, rx, startY)
         end
 
-        -- 2. Цилиндрическая проекция ленты символов и 3D латунных ребер
+        -- 2.1 Цилиндрическая проекция ленты символов и 3D латунных ребер
         local normOffset = slots.reels[r].offset % STRIP_HEIGHT
-        local R = 175
+        local R = 215
         local maxAngle = 1.05
 
-        -- 2.1 Разделительные литые латунные ребра барабана
+        -- Разделительные литые латунные ребра барабана
         for i = 1, NUM_SYMBOLS do
             local divDist = (i - 0.5) * CELL_H - normOffset
             while divDist < -STRIP_HEIGHT / 2 do divDist = divDist + STRIP_HEIGHT end
             while divDist > STRIP_HEIGHT / 2 do divDist = divDist - STRIP_HEIGHT end
 
-            if math.abs(divDist) <= 200 then
-                local theta = (divDist / 180) * maxAngle
+            if math.abs(divDist) <= 120 then
+                local theta = (divDist / 225) * maxAngle
                 local divY = centerY + R * math.sin(theta)
                 local divCos = math.cos(theta)
-                local divBright = math.max(0.22, math.pow(divCos, 1.35))
-                local ribH = math.max(2, math.floor(5 * divCos))
+                local divBright = math.max(0.18, math.pow(divCos, 1.4))
+                local ribH = math.max(2, math.floor(6 * divCos))
 
                 -- Нижняя тень ребра
                 love.graphics.setColor(0.08, 0.03, 0.01, 0.7 * divBright)
@@ -442,22 +486,22 @@ function slots.draw()
             while linearDist < -STRIP_HEIGHT / 2 do linearDist = linearDist + STRIP_HEIGHT end
             while linearDist > STRIP_HEIGHT / 2 do linearDist = linearDist - STRIP_HEIGHT end
 
-            if math.abs(linearDist) <= 200 then
-                local theta = (linearDist / 180) * maxAngle
+            if math.abs(linearDist) <= 260 then
+                local theta = (linearDist / 225) * maxAngle
                 local projY = centerY + R * math.sin(theta)
                 local cosTheta = math.cos(theta)
 
                 -- Сжатие по вертикали и освещенность цилиндра
-                local scaleY = math.max(0.48, cosTheta)
+                local scaleY = math.max(0.42, cosTheta)
                 local scaleX = 0.86 + 0.14 * cosTheta
                 local distFromCenter = math.abs(projY - centerY)
-                -- Глубокое аутентичное затемнение в тень сверху и снизу
-                local brightness = math.max(0.24, 1.0 - math.pow(distFromCenter / 125, 1.5) * 0.76)
-                local targetSize = 84 * scaleX
+                -- Глубокое затемнение в тень сверху и снизу (точь-в-точь как в HTML макете)
+                local brightness = math.max(0.10, 1.0 - math.pow(distFromCenter / 145, 1.6) * 0.90)
+                local targetSize = 92 * scaleX
 
                 -- Тень символа на цилиндрической поверхности
                 sprites.draw(slots.symbols[i], rx + reelW / 2, projY + 4 * scaleY, targetSize, 0.35 * brightness, scaleY, 0.08)
-                -- Сам 16-битный спрайт с динамическим ракурсным сжатием и затемнением
+                -- Сам 16-битный спрайт
                 sprites.draw(slots.symbols[i], rx + reelW / 2, projY, targetSize, 1.0, scaleY, brightness)
             end
         end
@@ -471,7 +515,6 @@ function slots.draw()
         love.graphics.setStencilTest()
 
         -- 4. Внешняя золотая рамка барабана со скругленными углами
-        -- Темный контур
         love.graphics.setColor(92/255, 40/255, 14/255, 0.95)
         love.graphics.setLineWidth(2)
         love.graphics.rectangle("line", rx - 1, startY - 1, reelW + 2, reelH + 2, cornerR + 1)
@@ -506,32 +549,32 @@ function slots.draw()
         local pulse = math.sin(slots.winPulse) * 0.35 + 0.65
         -- Золотая аура выигрыша
         love.graphics.setColor(1, 0.84, 0.1, pulse * 0.9)
-        love.graphics.rectangle("fill", 42, centerY - 4, 940, 8)
+        love.graphics.rectangle("fill", 48, centerY - 4, 928, 8)
         -- Бело-желтая яркая сердцевина
         love.graphics.setColor(1, 1, 0.85, pulse)
-        love.graphics.rectangle("fill", 42, centerY - 1, 940, 2)
+        love.graphics.rectangle("fill", 48, centerY - 1, 928, 2)
 
         -- Маркеры LINE 1 по бокам
         love.graphics.setColor(0.65, 0.12, 0.08, pulse)
-        love.graphics.rectangle("fill", 42, centerY - 14, 46, 28, 4)
-        love.graphics.rectangle("fill", 936, centerY - 14, 46, 28, 4)
+        love.graphics.rectangle("fill", 48, centerY - 14, 46, 28, 4)
+        love.graphics.rectangle("fill", 930, centerY - 14, 46, 28, 4)
         love.graphics.setColor(1, 0.88, 0.4, pulse)
         love.graphics.setLineWidth(2)
-        love.graphics.rectangle("line", 42, centerY - 14, 46, 28, 4)
-        love.graphics.rectangle("line", 936, centerY - 14, 46, 28, 4)
+        love.graphics.rectangle("line", 48, centerY - 14, 46, 28, 4)
+        love.graphics.rectangle("line", 930, centerY - 14, 46, 28, 4)
         love.graphics.setLineWidth(1)
         love.graphics.setFont(fonts.xs)
-        love.graphics.print("▶ 1", 50, centerY - 6)
-        love.graphics.print("1 ◀", 944, centerY - 6)
+        love.graphics.print("▶ 1", 56, centerY - 6)
+        love.graphics.print("1 ◀", 938, centerY - 6)
     end
 
-    -- 5. Нижняя панель управления слотов
-    ui.drawBrassPlaque(28, 644, 968, 68, 4)
+    -- 5. Нижняя панель управления слотов (вровень с HTML-макетом, без зазора внизу)
+    ui.drawBrassPlaque(34, 678, 956, 64, 4)
 
     -- Плашка СТАВКА [Y]
-    local betX = 44
-    local betY = 652
-    local betW = 210
+    local betX = 48
+    local betY = 684
+    local betW = 180
     local betH = 52
     love.graphics.setColor(27/255, 10/255, 4/255, 1)
     love.graphics.rectangle("fill", betX, betY, betW, betH, 4)
@@ -541,20 +584,20 @@ function slots.draw()
     love.graphics.setLineWidth(1)
 
     -- Желтый значок [Y]
-    ui.drawButtonBadge(betX + 24, betY + betH / 2, 13, "Y")
+    ui.drawButtonBadge(betX + 22, betY + betH / 2, 12, "Y")
 
     -- Текст СТАВКА и сумма
-    love.graphics.setFont(fonts.xs)
+    love.graphics.setFont(fonts.sm)
     love.graphics.setColor(255/255, 234/255, 173/255, 1)
-    love.graphics.print(i18n.t("bet") .. ":", betX + 48, betY + 10)
+    love.graphics.print(i18n.t("bet") .. ":", betX + 44, betY + 9)
     love.graphics.setFont(fonts.md)
     love.graphics.setColor(1, 0.88, 0.4, 1)
-    love.graphics.print(economy.format(slots.bet), betX + 48, betY + 26)
+    love.graphics.print(economy.format(slots.bet), betX + 44, betY + 25)
 
     -- Плашка ВЫИГРЫШ
-    local winX = 380
-    local winY = 652
-    local winW = 220
+    local winX = 407
+    local winY = 684
+    local winW = 210
     local winH = 52
     love.graphics.setColor(27/255, 10/255, 4/255, 1)
     love.graphics.rectangle("fill", winX, winY, winW, winH, 4)
@@ -563,11 +606,11 @@ function slots.draw()
     love.graphics.rectangle("line", winX, winY, winW, winH, 4)
     love.graphics.setLineWidth(1)
 
-    love.graphics.setFont(fonts.xs)
+    love.graphics.setFont(fonts.sm)
     love.graphics.setColor(255/255, 234/255, 173/255, 1)
     local lwLabel = i18n.t("last_win") .. ":"
-    local lwlw = fonts.xs:getWidth(lwLabel)
-    love.graphics.print(lwLabel, math.floor(winX + (winW - lwlw) / 2), winY + 10)
+    local lwlw = fonts.sm:getWidth(lwLabel)
+    love.graphics.print(lwLabel, math.floor(winX + (winW - lwlw) / 2), winY + 9)
 
     love.graphics.setFont(fonts.md)
     local winValStr = economy.format(slots.lastWin)
@@ -577,30 +620,35 @@ function slots.draw()
     else
         love.graphics.setColor(255/255, 248/255, 235/255, 1)
     end
-    love.graphics.print(winValStr, math.floor(winX + (winW - vlw) / 2), winY + 26)
+    love.graphics.print(winValStr, math.floor(winX + (winW - vlw) / 2), winY + 25)
 
-    -- 3D Рубиновая кнопка СПИН [X]
+    -- 3D Рубиновая кнопка СПИН [X] (компактная, аутентичная)
     local spinAlpha = slots.isSpinning and 0.55 or 1.0
-    local bx = 724
-    local by = 650
-    local bw = 256
-    local bh = 56
+    local spinX = 746
+    local spinY = 684
+    local spinW = 230
+    local spinH = 52
 
-    ui.drawSaloonButtonRed(bx, by, bw, bh, slots.isSpinning, spinAlpha)
+    ui.drawSaloonButtonRed(spinX, spinY, spinW, spinH, slots.isSpinning, spinAlpha)
 
-    -- Золотая круглая кнопка геймпада (X)
-    ui.drawButtonBadge(bx + 30, by + bh / 2, 13, "X", spinAlpha)
-
-    -- Текст SPIN!
+    -- Золотая круглая кнопка геймпада (X) и текст SPIN! сцентрированные вместе
     local spinFont = fonts.lg
     love.graphics.setFont(spinFont)
     local spinText = i18n.t("spin") .. "!"
     local stw = spinFont:getWidth(spinText)
     local sth = spinFont:getHeight()
-    local textX = math.floor(bx + 54 + (bw - 54 - stw) / 2)
-    local textY = math.floor(by + (bh - sth) / 2)
+    local badgeD = 24
+    local gap = 14
+    local totalContentW = badgeD + gap + stw
+    local contentStartX = math.floor(spinX + (spinW - totalContentW) / 2)
+    local badgeCenterX = contentStartX + badgeD / 2
+    local textX = contentStartX + badgeD + gap
+    local textY = math.floor(spinY + (spinH - sth) / 2)
+
+    ui.drawButtonBadge(badgeCenterX, spinY + spinH / 2, 12, "X", spinAlpha)
 
     -- Тень текста #3b0802
+    love.graphics.setFont(spinFont)
     love.graphics.setColor(59/255, 8/255, 2/255, spinAlpha)
     love.graphics.print(spinText, textX + 2, textY + 2)
     -- Текст белый #fffdf2
@@ -621,8 +669,8 @@ function slots.keypressed(key)
 end
 
 function slots.mousepressed(x, y)
-    -- Окно ставки [Y] (44, 652, 210, 52)
-    if x >= 40 and x <= 265 and y >= 645 and y <= 715 then
+    -- Окно ставки [Y] (48, 684, 180, 52)
+    if x >= 44 and x <= 235 and y >= 680 and y <= 740 then
         if not slots.isSpinning then
             betModal.open(slots.bet, 100, economy.getBalance(), function(newBet)
                 slots.bet = newBet
@@ -631,8 +679,8 @@ function slots.mousepressed(x, y)
         return true
     end
 
-    -- Кнопка SPIN (724, 650, 256, 56)
-    if x >= 715 and x <= 990 and y >= 645 and y <= 715 then
+    -- Кнопка SPIN (746, 684, 230, 52)
+    if x >= 740 and x <= 980 and y >= 680 and y <= 740 then
         slots.spin()
         return true
     end

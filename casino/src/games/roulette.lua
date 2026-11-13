@@ -3,6 +3,8 @@ local roulette = {}
 local economy = require("src.core.economy")
 local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
+local fonts = require("src.core.fonts")
+local ui = require("src.core.ui")
 local betModal = require("src.core.bet_modal")
 local bankruptModal = require("src.core.bankrupt_modal")
 
@@ -18,7 +20,7 @@ roulette.isSpinning = false
 roulette.wheelAngle = 0
 roulette.ballAngle = 0
 roulette.ballRadius = 110
-roulette.history = {}
+roulette.history = { {num=32, won=false}, {num=15, won=true}, {num=19, won=false}, {num=4, won=false}, {num=21, won=true}, {num=2, won=false} }
 roulette.statusKey = ""
 roulette.statusNum = 0
 roulette.statusCol = ""
@@ -33,7 +35,7 @@ roulette.curRow = 2
 roulette.curCol = 1
 
 function roulette.resetTable()
-    roulette.history = {}
+    roulette.history = { {num=32, won=false}, {num=15, won=true}, {num=19, won=false}, {num=4, won=false}, {num=21, won=true}, {num=2, won=false} }
     roulette.bets = {}
     roulette.statusKey = ""
     roulette.curRow = 2
@@ -394,26 +396,41 @@ function roulette.finishSpin()
 end
 
 local function drawGrid(alpha)
-    local tx, ty = 340, 140
-    local cellW, cellH = 48, 56
-    local totalW = cellW * 12 + 22
+    local tx = 364
+    local tableW = 618
+
+    -- Внешняя рамка стола рулетки
+    love.graphics.setColor(9/255, 33/255, 19/255, alpha)
+    love.graphics.rectangle("fill", 356, 162, 634, 498, 6)
+    love.graphics.setColor(255/255, 234/255, 173/255, 0.85 * alpha)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", 356, 162, 634, 498, 6)
+    love.graphics.setLineWidth(1)
 
     -- 1. Сектор 0 ZERO (x36)
-    love.graphics.setColor(0.1, 0.45, 0.15, alpha)
-    love.graphics.rectangle("fill", tx, ty, totalW, 36, 4)
+    local zy = 170
+    local zh = 42
+    love.graphics.setColor(26/255, 92/255, 40/255, alpha)
+    love.graphics.rectangle("fill", tx, zy, tableW, zh, 4)
+    love.graphics.setColor(92/255, 40/255, 14/255, alpha)
+    love.graphics.rectangle("line", tx, zy, tableW, zh, 4)
+
+    love.graphics.setFont(fonts.sm)
     love.graphics.setColor(1, 1, 1, alpha)
-    love.graphics.print("0 ZERO (x36)", tx + 240, ty + 10)
+    local zText = "0 ZERO (x36)"
+    local ztw = fonts.sm:getWidth(zText)
+    love.graphics.print(zText, math.floor(tx + (tableW - ztw) / 2), zy + 14)
 
     local curKey = roulette.getCurrentKey()
     if curKey == "0" then
         love.graphics.setColor(1, 0.88, 0.2, alpha)
         love.graphics.setLineWidth(3)
-        love.graphics.rectangle("line", tx - 2, ty - 2, totalW + 4, 40, 4)
+        love.graphics.rectangle("line", tx - 2, zy - 2, tableW + 4, zh + 4, 4)
         love.graphics.setLineWidth(1)
     end
     if roulette.bets["0"] then
         love.graphics.setColor(1, 0.85, 0.2, alpha)
-        love.graphics.circle("fill", tx + totalW - 14, ty + 18, 8)
+        love.graphics.circle("fill", tx + tableW - 24, zy + zh / 2, 9)
     end
 
     -- 2. Сетка чисел 1-36 (3 строки по 12)
@@ -422,20 +439,31 @@ local function drawGrid(alpha)
         { 2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35 },
         { 1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34 }
     }
+    local gy = 220
+    local gh = 246
+    local cellW = math.floor((tableW - 11 * 4) / 12)
+    local cellH = math.floor((gh - 2 * 4) / 3)
+
     for rowIdx, row in ipairs(rows) do
         for colIdx, num in ipairs(row) do
-            local x = tx + (colIdx - 1) * (cellW + 2)
-            local y = ty + 40 + (rowIdx - 1) * (cellH + 2)
+            local x = tx + (colIdx - 1) * (cellW + 4)
+            local y = gy + (rowIdx - 1) * (cellH + 4)
 
             if isRed(num) then
-                love.graphics.setColor(0.7, 0.15, 0.1, alpha)
+                love.graphics.setColor(179/255, 40/255, 26/255, alpha)
             else
-                love.graphics.setColor(0.12, 0.05, 0.02, alpha)
+                love.graphics.setColor(20/255, 7/255, 2/255, alpha)
             end
             love.graphics.rectangle("fill", x, y, cellW, cellH, 3)
+            love.graphics.setColor(92/255, 40/255, 14/255, 0.8 * alpha)
+            love.graphics.rectangle("line", x, y, cellW, cellH, 3)
 
+            love.graphics.setFont(fonts.sm)
             love.graphics.setColor(1, 1, 1, alpha)
-            love.graphics.print(tostring(num), x + 16, y + 20)
+            local sNum = tostring(num)
+            local ntw = fonts.sm:getWidth(sNum)
+            local nth = fonts.sm:getHeight()
+            love.graphics.print(sNum, math.floor(x + (cellW - ntw) / 2), math.floor(y + (cellH - nth) / 2))
 
             if roulette.curRow == rowIdx and roulette.curCol == colIdx and roulette.curCol > 0 then
                 love.graphics.setColor(1, 0.88, 0.2, alpha)
@@ -446,27 +474,32 @@ local function drawGrid(alpha)
 
             if roulette.bets[tostring(num)] then
                 love.graphics.setColor(1, 0.85, 0.2, alpha)
-                love.graphics.circle("fill", x + cellW - 12, y + 12, 8)
+                love.graphics.circle("fill", x + cellW - 10, y + 10, 7)
             end
         end
     end
 
     -- 3. Дюжины: 1-12, 13-24, 25-36 (x3)
-    local dozY = ty + 40 + 3 * (cellH + 2) + 2
-    local dozW = (totalW - 4) / 3
-    local dozH = 34
+    local dozY = 474
+    local dozH = 42
+    local dozW = math.floor((tableW - 2 * 4) / 3)
     local dozDefs = {
         { key = "doz-1", label = "1-12 (x3)" },
         { key = "doz-2", label = "13-24 (x3)" },
         { key = "doz-3", label = "25-36 (x3)" }
     }
     for colIdx, doz in ipairs(dozDefs) do
-        local x = tx + (colIdx - 1) * (dozW + 2)
-        love.graphics.setColor(0.09, 0.29, 0.16, alpha)
+        local x = tx + (colIdx - 1) * (dozW + 4)
+        love.graphics.setColor(24/255, 74/255, 40/255, alpha)
         love.graphics.rectangle("fill", x, dozY, dozW, dozH, 3)
+        love.graphics.setColor(92/255, 40/255, 14/255, alpha)
+        love.graphics.rectangle("line", x, dozY, dozW, dozH, 3)
 
+        love.graphics.setFont(fonts.sm)
         love.graphics.setColor(1, 1, 1, alpha)
-        love.graphics.print(doz.label, x + dozW / 2 - 34, dozY + 10)
+        local dtw = fonts.sm:getWidth(doz.label)
+        local dth = fonts.sm:getHeight()
+        love.graphics.print(doz.label, math.floor(x + (dozW - dtw) / 2), math.floor(dozY + (dozH - dth) / 2))
 
         if roulette.curRow == 4 and ((colIdx == 1 and roulette.curCol <= 4) or (colIdx == 2 and roulette.curCol >= 5 and roulette.curCol <= 8) or (colIdx == 3 and roulette.curCol >= 9)) then
             love.graphics.setColor(1, 0.88, 0.2, alpha)
@@ -477,29 +510,34 @@ local function drawGrid(alpha)
 
         if roulette.bets[doz.key] then
             love.graphics.setColor(1, 0.85, 0.2, alpha)
-            love.graphics.circle("fill", x + dozW - 12, dozY + 12, 8)
+            love.graphics.circle("fill", x + dozW - 12, dozY + 12, 7)
         end
     end
 
     -- 4. Внешние ставки: 1-18, EVEN, RED, BLACK, ODD, 19-36 (x2)
-    local outY = dozY + dozH + 4
-    local outW = (totalW - 10) / 6
-    local outH = 34
+    local outY = 522
+    local outH = 42
+    local outW = math.floor((tableW - 5 * 4) / 6)
     local outDefs = {
-        { key = "low",   label = "1-18 (x2)",  bg = { 0.09, 0.29, 0.16 } },
-        { key = "even",  label = "EVEN (x2)",  bg = { 0.09, 0.29, 0.16 } },
-        { key = "red",   label = "RED (x2)",   bg = { 0.70, 0.15, 0.10 } },
-        { key = "black", label = "BLACK (x2)", bg = { 0.12, 0.05, 0.02 } },
-        { key = "odd",   label = "ODD (x2)",   bg = { 0.09, 0.29, 0.16 } },
-        { key = "high",  label = "19-36 (x2)", bg = { 0.09, 0.29, 0.16 } }
+        { key = "low",   label = "1-18 (x2)",  bg = { 24/255, 74/255, 40/255 } },
+        { key = "even",  label = "EVEN (x2)",  bg = { 24/255, 74/255, 40/255 } },
+        { key = "red",   label = "RED (x2)",   bg = { 179/255, 40/255, 26/255 } },
+        { key = "black", label = "BLACK (x2)", bg = { 20/255, 7/255, 2/255 } },
+        { key = "odd",   label = "ODD (x2)",   bg = { 24/255, 74/255, 40/255 } },
+        { key = "high",  label = "19-36 (x2)", bg = { 24/255, 74/255, 40/255 } }
     }
     for colIdx, ob in ipairs(outDefs) do
-        local x = tx + (colIdx - 1) * (outW + 2)
+        local x = tx + (colIdx - 1) * (outW + 4)
         love.graphics.setColor(ob.bg[1], ob.bg[2], ob.bg[3], alpha)
         love.graphics.rectangle("fill", x, outY, outW, outH, 3)
+        love.graphics.setColor(92/255, 40/255, 14/255, alpha)
+        love.graphics.rectangle("line", x, outY, outW, outH, 3)
 
+        love.graphics.setFont(fonts.xs)
         love.graphics.setColor(1, 1, 1, alpha)
-        love.graphics.print(ob.label, x + outW / 2 - (#ob.label * 4), outY + 10)
+        local otw = fonts.xs:getWidth(ob.label)
+        local oth = fonts.xs:getHeight()
+        love.graphics.print(ob.label, math.floor(x + (outW - otw) / 2), math.floor(outY + (outH - oth) / 2))
 
         local isOutFocus = (roulette.curRow == 5 and (
             (colIdx == 1 and roulette.curCol <= 2) or
@@ -522,97 +560,124 @@ local function drawGrid(alpha)
         end
     end
 
-    love.graphics.setColor(0.22, 0.1, 0.04, alpha)
-    love.graphics.rectangle("fill", 40, 560, 944, 60, 4)
+    -- 5. Нижняя панель действий (вровень с остальными залами)
+    ui.drawBrassPlaque(34, 678, 956, 64, 4)
 
-    -- Панель фишки и общей ставки
-    love.graphics.setColor(0.12, 0.05, 0.02, alpha)
-    love.graphics.rectangle("fill", 50, 566, 360, 48, 4)
-    love.graphics.setColor(0.78, 0.52, 0.12, alpha)
-    love.graphics.rectangle("line", 50, 566, 360, 48, 4)
+    -- Панель выбранной фишки [Y]
+    local chipBoxX = 48
+    local chipBoxY = 684
+    local chipBoxW = 150
+    local chipBoxH = 52
+    love.graphics.setColor(27/255, 10/255, 4/255, alpha)
+    love.graphics.rectangle("fill", chipBoxX, chipBoxY, chipBoxW, chipBoxH, 4)
+    love.graphics.setColor(120/255, 79/255, 24/255, alpha)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", chipBoxX, chipBoxY, chipBoxW, chipBoxH, 4)
+    love.graphics.setLineWidth(1)
 
     -- Желтый значок [Y]
-    local font = love.graphics.getFont()
-    local cx, cy = 72, 590
-    love.graphics.setColor(0.96, 0.78, 0.2, alpha)
-    love.graphics.circle("fill", cx, cy, 12)
-    love.graphics.setColor(0.08, 0.03, 0.01, alpha)
-    love.graphics.setLineWidth(1.5)
-    love.graphics.circle("line", cx, cy, 12)
+    ui.drawButtonBadge(chipBoxX + 20, chipBoxY + chipBoxH / 2, 11, "Y", alpha)
+
+    love.graphics.setFont(fonts.xs)
+    love.graphics.setColor(255/255, 234/255, 173/255, alpha)
+    love.graphics.print(i18n.t("bet") .. ":", chipBoxX + 38, chipBoxY + 9)
+    love.graphics.setFont(fonts.md)
+    love.graphics.setColor(1, 0.88, 0.4, alpha)
+    love.graphics.print(economy.format(roulette.selectedChip), chipBoxX + 38, chipBoxY + 25)
+
+    -- Панель общей ставки TOTAL BET
+    local totBoxX = 208
+    local totBoxY = 684
+    local totBoxW = 170
+    local totBoxH = 52
+    love.graphics.setColor(27/255, 10/255, 4/255, alpha)
+    love.graphics.rectangle("fill", totBoxX, totBoxY, totBoxW, totBoxH, 4)
+    love.graphics.setColor(92/255, 40/255, 14/255, alpha)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", totBoxX, totBoxY, totBoxW, totBoxH, 4)
     love.graphics.setLineWidth(1)
-    local kw = font and font:getWidth("Y") or 8
-    local kh = font and font:getHeight() or 14
-    local tx = math.floor(cx - kw / 2)
-    local ty = math.floor(cy - kh / 2)
-    love.graphics.print("Y", tx, ty)
-    love.graphics.print("Y", tx + 1, ty)
 
-    love.graphics.setColor(0.9, 0.8, 0.55, alpha)
-    love.graphics.print(i18n.t("bet") .. ":", 92, 574)
+    love.graphics.setFont(fonts.xs)
+    love.graphics.setColor(255/255, 234/255, 173/255, alpha)
+    love.graphics.print(i18n.t("total") .. ":", totBoxX + 16, totBoxY + 9)
+    love.graphics.setFont(fonts.md)
     love.graphics.setColor(1, 0.88, 0.4, alpha)
-    love.graphics.print(economy.format(roulette.selectedChip), 92, 590)
+    love.graphics.print(economy.format(roulette.getTotalBet()), totBoxX + 16, totBoxY + 25)
 
-    love.graphics.setColor(0.9, 0.8, 0.55, alpha)
-    love.graphics.print(i18n.t("total") .. ":", 220, 574)
-    love.graphics.setColor(1, 0.88, 0.4, alpha)
-    love.graphics.print(economy.format(roulette.getTotalBet()), 220, 590)
+    -- Кнопки действий: BET (A), CLEAR (B), SPIN! (X)
+    local btnY = 686
+    local btnH = 48
 
-    local function drawGameBtn(bx, by, bw, bh, bCol, keyCol, keyChar, label)
-        love.graphics.setColor(0.08, 0.03, 0.01, alpha)
-        love.graphics.rectangle("fill", bx, by, bw, bh, 4)
-        love.graphics.setColor(bCol[1], bCol[2], bCol[3], alpha)
-        love.graphics.rectangle("fill", bx + 2, by + 2, bw - 4, bh - 4, 3)
-        love.graphics.setColor(bCol[1] * 1.35, bCol[2] * 1.35, bCol[3] * 1.35, alpha)
-        love.graphics.rectangle("line", bx + 2, by + 2, bw - 4, bh - 4, 3)
+    -- BET (A)
+    local betBtnX = 404
+    local betBtnW = 130
+    ui.drawSaloonButton(betBtnX, btnY, betBtnW, btnH, "", nil, false, alpha)
+    local betLabel = i18n.t("bet")
+    love.graphics.setFont(fonts.md)
+    local btw = fonts.md:getWidth(betLabel)
+    local bth = fonts.md:getHeight()
+    local totalBetW = 22 + 10 + btw
+    local betStartX = betBtnX + math.floor((betBtnW - totalBetW) / 2)
+    ui.drawButtonBadge(betStartX + 11, btnY + btnH / 2, 11, "A", alpha, "green")
+    love.graphics.setColor(255/255, 248/255, 235/255, alpha)
+    love.graphics.print(betLabel, betStartX + 32, math.floor(btnY + (btnH - bth) / 2))
 
-        local cx = bx + 18
-        local cy = by + bh / 2
-        love.graphics.setColor(keyCol[1], keyCol[2], keyCol[3], alpha)
-        love.graphics.circle("fill", cx, cy, 11)
-        love.graphics.setColor(0.08, 0.03, 0.01, alpha)
-        love.graphics.setLineWidth(1.5)
-        love.graphics.circle("line", cx, cy, 11)
-        love.graphics.setLineWidth(1)
-        local font = love.graphics.getFont()
-        local kw = font and font:getWidth(keyChar) or (#keyChar * 8)
-        local kh = font and font:getHeight() or 14
-        local tx = math.floor(cx - kw / 2)
-        local ty = math.floor(cy - kh / 2)
-        love.graphics.print(keyChar, tx, ty)
-        love.graphics.print(keyChar, tx + 1, ty)
+    -- CLEAR (B)
+    local clrBtnX = 548
+    local clrBtnW = 150
+    ui.drawSaloonButtonRed(clrBtnX, btnY, clrBtnW, btnH, false, alpha)
+    local clrLabel = i18n.t("clear")
+    love.graphics.setFont(fonts.md)
+    local ctw = fonts.md:getWidth(clrLabel)
+    local cth = fonts.md:getHeight()
+    local totalClrW = 22 + 10 + ctw
+    local clrStartX = clrBtnX + math.floor((clrBtnW - totalClrW) / 2)
+    ui.drawButtonBadge(clrStartX + 11, btnY + btnH / 2, 11, "B", alpha, "red")
+    love.graphics.setColor(255/255, 248/255, 235/255, alpha)
+    love.graphics.print(clrLabel, clrStartX + 32, math.floor(btnY + (btnH - cth) / 2))
 
-        love.graphics.setColor(1, 1, 1, alpha)
-        love.graphics.print(label, bx + 36, cy - 7)
-    end
+    -- SPIN (X)
+    local spinBtnX = 724
+    local spinBtnY = 684
+    local spinBtnW = 252
+    local spinBtnH = 52
+    local spinAlpha = (roulette.isSpinning and 0.55 or 1.0) * alpha
+    ui.drawSaloonButtonRed(spinBtnX, spinBtnY, spinBtnW, spinBtnH, roulette.isSpinning, spinAlpha)
 
-    drawGameBtn(430, 570, 120, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", i18n.t("bet"))
-    drawGameBtn(565, 570, 130, 40, {0.75, 0.16, 0.1}, {0.95, 0.32, 0.3}, "B", i18n.t("clear"))
-    drawGameBtn(710, 570, 130, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "Y", i18n.t("set_bet"))
-    drawGameBtn(855, 570, 120, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "X", i18n.t("spin") .. "!")
+    local spText = i18n.t("spin") .. "!"
+    love.graphics.setFont(fonts.lg)
+    local sptw = fonts.lg:getWidth(spText)
+    local spth = fonts.lg:getHeight()
+    local totalSpW = 24 + 12 + sptw
+    local spStartX = spinBtnX + math.floor((spinBtnW - totalSpW) / 2)
+
+    ui.drawButtonBadge(spStartX + 12, spinBtnY + spinBtnH / 2, 12, "X", spinAlpha, "yellow")
+
+    local sptx = spStartX + 36
+    local spty = math.floor(spinBtnY + (spinBtnH - spth) / 2)
+    love.graphics.setFont(fonts.lg)
+    love.graphics.setColor(59/255, 8/255, 2/255, spinAlpha)
+    love.graphics.print(spText, sptx + 2, spty + 2)
+    love.graphics.setColor(255/255, 253/255, 242/255, spinAlpha)
+    love.graphics.print(spText, sptx, spty)
 end
 
 function roulette.draw()
-    local font = love.graphics.getFont()
+    -- 1. Верхняя латунная плашка истории
+    ui.drawBrassPlaque(34, 90, 956, 56, 4)
 
-    -- 1. Верхняя латунная плашка истории (высота 52px, внутри сукна, без подсказок справа)
-    love.graphics.setColor(0.18, 0.08, 0.03)
-    love.graphics.rectangle("fill", 40, 86, 944, 52, 4)
-    love.graphics.setColor(0.78, 0.52, 0.12)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", 40, 86, 944, 52, 4)
-    love.graphics.setLineWidth(1)
-
-    -- Подпись HISTORY: (золотой фирменный шрифт в стиле остальных залов)
-    local histLabel = i18n.t("history") .. ":"
-    local htw = font and font:getWidth(histLabel) or (#histLabel * 8)
+    -- Подпись HISTORY:
+    love.graphics.setFont(fonts.xs)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(histLabel, 54, 100, 0, 1.15, 1.15)
+    local histLabel = i18n.t("history") .. ":"
+    local htw = fonts.xs:getWidth(histLabel)
+    love.graphics.print(histLabel, 50, 110)
 
-    -- Увеличенные значки выпавших цифр
-    local badgeStartX = 54 + htw * 1.15 + 14
-    local badgeW = 38
-    local badgeH = 36
-    local badgeY = 92
+    -- Значки выпавших цифр
+    local badgeStartX = 50 + htw + 16
+    local badgeW = 34
+    local badgeH = 34
+    local badgeY = 101
 
     for i, item in ipairs(roulette.history) do
         if i > 8 then break end
@@ -620,54 +685,54 @@ function roulette.draw()
         local n = (type(item) == "table") and item.num or item
         local won = (type(item) == "table") and item.won or false
 
-        -- Фон значка цифры
         if n == 0 then
-            love.graphics.setColor(0.08, 0.36, 0.14)
+            love.graphics.setColor(24/255, 74/255, 40/255)
         elseif isRed(n) then
-            love.graphics.setColor(0.72, 0.16, 0.1)
+            love.graphics.setColor(179/255, 40/255, 26/255)
         else
-            love.graphics.setColor(0.1, 0.04, 0.02)
+            love.graphics.setColor(20/255, 7/255, 2/255)
         end
         love.graphics.rectangle("fill", bx, badgeY, badgeW, badgeH, 4)
-        love.graphics.setColor(0.3, 0.15, 0.08)
+        love.graphics.setColor(92/255, 40/255, 14/255)
         love.graphics.rectangle("line", bx, badgeY, badgeW, badgeH, 4)
 
-        -- Число
         local nStr = tostring(n)
-        local ntw = font and font:getWidth(nStr) or (#nStr * 8)
+        love.graphics.setFont(fonts.xs)
+        local ntw = fonts.xs:getWidth(nStr)
+        local nth = fonts.xs:getHeight()
         love.graphics.setColor(1, 1, 1)
-        love.graphics.print(nStr, bx + badgeW / 2 - (ntw * 1.1) / 2, badgeY + 8, 0, 1.1, 1.1)
+        love.graphics.print(nStr, math.floor(bx + (badgeW - ntw) / 2), math.floor(badgeY + (badgeH - nth) / 2))
 
-        -- Фирменное золотое нижнее подчеркивание, если победили
         if won then
             love.graphics.setColor(1, 0.88, 0.4)
-            love.graphics.rectangle("fill", bx + 3, badgeY + badgeH - 3, badgeW - 6, 3, 1)
+            love.graphics.rectangle("fill", bx + 3, badgeY + badgeH - 3, badgeW - 6, 2, 1)
         end
     end
 
-    -- Статус выигрыша справа (подсказки кнопок убраны)
+    -- Статус выигрыша справа
     local st = roulette.getStatusText()
     if st ~= "" then
-        local stw = font and font:getWidth(st) or (#st * 8)
+        love.graphics.setFont(fonts.xs)
+        local stw = fonts.xs:getWidth(st)
         love.graphics.setColor(1, 0.88, 0.4)
-        love.graphics.print(st, 960 - stw, 100)
+        love.graphics.print(st, 970 - stw, 110)
     end
 
-    -- Расчет плавного зума и центровки на всё свободное пространство экрана
-    local cx = 175 + roulette.zoom * (512 - 175)
-    local cy = 375 + roulette.zoom * (405 - 375)
-    local r = 145 + roulette.zoom * (275 - 145)
+    -- Расчет колеса
+    local cx = 195 + roulette.zoom * (512 - 195)
+    local cy = 410 + roulette.zoom * (405 - 410)
+    local r = 135 + roulette.zoom * (275 - 135)
 
     -- Внешняя чаша из красного дерева с латунным ободом
-    love.graphics.setColor(0.18, 0.08, 0.03)
+    love.graphics.setColor(43/255, 18/255, 6/255)
     love.graphics.circle("fill", cx, cy, r + 10)
-    love.graphics.setColor(0.78, 0.52, 0.12)
+    love.graphics.setColor(200/255, 134/255, 30/255)
     love.graphics.setLineWidth(4)
     love.graphics.circle("line", cx, cy, r + 10)
     love.graphics.setLineWidth(1)
 
     -- Канавка трека шарика
-    love.graphics.setColor(0.08, 0.03, 0.01)
+    love.graphics.setColor(20/255, 7/255, 2/255)
     love.graphics.circle("fill", cx, cy, r - 4)
 
     -- 8 латунных дефлекторов
@@ -685,15 +750,15 @@ function roulette.draw()
     for i, num in ipairs(roulette.wheel) do
         local start = roulette.wheelAngle + (i - 1) * slice
         if num == 0 then
-            love.graphics.setColor(0.08, 0.45, 0.16)
+            love.graphics.setColor(26/255, 92/255, 40/255)
         elseif isRed(num) then
-            love.graphics.setColor(0.72, 0.12, 0.12)
+            love.graphics.setColor(179/255, 40/255, 26/255)
         else
-            love.graphics.setColor(0.08, 0.04, 0.02)
+            love.graphics.setColor(20/255, 7/255, 2/255)
         end
         love.graphics.arc("fill", cx, cy, r - 20, start, start + slice)
 
-        -- Латунные разделители (frets)
+        -- Латунные разделители
         love.graphics.setColor(1, 0.9, 0.5, 0.7)
         local fx1 = cx + math.cos(start) * innerR
         local fy1 = cy + math.sin(start) * innerR
@@ -701,27 +766,28 @@ function roulette.draw()
         local fy2 = cy + math.sin(start) * (r - 20)
         love.graphics.line(fx1, fy1, fx2, fy2)
 
-        -- Номер кармана (белый / кремовый шрифт)
+        -- Номер кармана
         if roulette.zoom > 0.35 then
             local midAng = start + slice / 2
             local textR = (r - 20 + innerR) / 2
             local tx = cx + math.cos(midAng) * textR
             local ty = cy + math.sin(midAng) * textR
+            love.graphics.setFont(fonts.xs)
             love.graphics.setColor(1, 0.95, 0.7)
             local sNum = tostring(num)
-            love.graphics.print(sNum, tx - 5, ty - 6)
+            love.graphics.print(sNum, tx - 5, ty - 5)
         end
     end
 
     -- Внутренний полированный конус и центральная турель
-    love.graphics.setColor(0.24, 0.10, 0.04)
+    love.graphics.setColor(56/255, 24/255, 10/255)
     love.graphics.circle("fill", cx, cy, innerR)
-    love.graphics.setColor(0.85, 0.65, 0.18)
+    love.graphics.setColor(212/255, 175/255, 55/255)
     love.graphics.circle("fill", cx, cy, r * 0.22)
-    love.graphics.setColor(0.12, 0.05, 0.02)
+    love.graphics.setColor(20/255, 7/255, 2/255)
     love.graphics.circle("fill", cx, cy, r * 0.08)
 
-    -- Физический шарик из слоновой кости (появляется только после броска крупье)
+    -- Физический шарик
     if (roulette.isSpinning or roulette.holdTimer > 0) and roulette.ballActive then
         local actualBallR = r * roulette.ballRadius
         local bx = cx + math.cos(roulette.ballAngle) * actualBallR
@@ -737,7 +803,7 @@ function roulette.draw()
         love.graphics.circle("fill", bx - 2, by - 2, 2.5)
     end
 
-    -- СЕТКА И КНОПКИ СТАВОК СКРЫВАЮТСЯ ВО ВРЕМЯ ВРАЩЕНИЯ И ПОКА ПО ЦЕНТРУ
+    -- Сетка и кнопки ставок
     if roulette.zoom < 0.65 then
         local alpha = 1 - (roulette.zoom / 0.65)
         drawGrid(alpha)
@@ -799,41 +865,34 @@ end
 function roulette.mousepressed(x, y)
     if roulette.isSpinning then return false end
 
-    -- Плашка фишки / ставки [Y] (щедрая зона клика)
-    if x >= 40 and x <= 420 and y >= 550 and y <= 620 then
+    -- Плашка фишки / ставки [Y]
+    if x >= 44 and x <= 200 and y >= 680 and y <= 740 then
         betModal.open(roulette.selectedChip, 100, economy.getBalance(), function(newChip)
             roulette.selectedChip = newChip
         end)
         return true
     end
 
-    -- Кнопки действий снизу
-    -- BET (A): 430, 570, 120, 40
-    if x >= 430 and x <= 550 and y >= 570 and y <= 610 then
+    -- Кнопки действий снизу: BET (A), CLEAR (B), SPIN! (X)
+    -- BET (A): 404, 686, 130, 48
+    if x >= 404 and x <= 534 and y >= 680 and y <= 740 then
         roulette.placeBet()
         return true
-    -- CLEAR (B): 565, 570, 130, 40
-    elseif x >= 565 and x <= 695 and y >= 570 and y <= 610 then
+    -- CLEAR (B): 548, 686, 150, 48
+    elseif x >= 548 and x <= 698 and y >= 680 and y <= 740 then
         roulette.clearBets()
         return true
-    -- SET BET (Y): 710, 570, 130, 40
-    elseif x >= 710 and x <= 840 and y >= 570 and y <= 610 then
-        betModal.open(roulette.selectedChip, 100, economy.getBalance(), function(newChip)
-            roulette.selectedChip = newChip
-        end)
-        return true
-    -- SPIN (X): 855, 570, 120, 40
-    elseif x >= 855 and x <= 975 and y >= 570 and y <= 610 then
+    -- SPIN (X): 724, 684, 252, 52
+    elseif x >= 724 and x <= 976 and y >= 680 and y <= 740 then
         roulette.spin()
         return true
     end
 
-    local tx, ty = 340, 140
-    local cellW, cellH = 48, 56
-    local totalW = cellW * 12 + 22
+    local tx = 364
+    local tableW = 618
 
     -- Клик по Zero
-    if x >= tx and x <= tx + totalW and y >= ty and y <= ty + 36 then
+    if x >= tx and x <= tx + tableW and y >= 170 and y <= 212 then
         roulette.curRow = 0
         roulette.curCol = 1
         roulette.placeBet()
@@ -841,10 +900,15 @@ function roulette.mousepressed(x, y)
     end
 
     -- Клик по сетке чисел (3 строки по 12)
+    local gy = 220
+    local gh = 246
+    local cellW = math.floor((tableW - 11 * 4) / 12)
+    local cellH = math.floor((gh - 2 * 4) / 3)
+
     for rowIdx = 1, 3 do
         for colIdx = 1, 12 do
-            local cx = tx + (colIdx - 1) * (cellW + 2)
-            local cy = ty + 40 + (rowIdx - 1) * (cellH + 2)
+            local cx = tx + (colIdx - 1) * (cellW + 4)
+            local cy = gy + (rowIdx - 1) * (cellH + 4)
             if x >= cx and x <= cx + cellW and y >= cy and y <= cy + cellH then
                 roulette.curRow = rowIdx
                 roulette.curCol = colIdx
@@ -855,12 +919,12 @@ function roulette.mousepressed(x, y)
     end
 
     -- Клик по дюжинам
-    local dozY = ty + 40 + 3 * (cellH + 2) + 2
-    local dozW = (totalW - 4) / 3
-    local dozH = 34
+    local dozY = 474
+    local dozH = 42
+    local dozW = math.floor((tableW - 2 * 4) / 3)
     if y >= dozY and y <= dozY + dozH then
         for colIdx = 1, 3 do
-            local cx = tx + (colIdx - 1) * (dozW + 2)
+            local cx = tx + (colIdx - 1) * (dozW + 4)
             if x >= cx and x <= cx + dozW then
                 roulette.curRow = 4
                 roulette.curCol = (colIdx == 1) and 1 or ((colIdx == 2) and 5 or 9)
@@ -871,12 +935,12 @@ function roulette.mousepressed(x, y)
     end
 
     -- Клик по внешним ставкам (1-18, EVEN, RED, BLACK, ODD, 19-36)
-    local outY = dozY + dozH + 4
-    local outW = (totalW - 10) / 6
-    local outH = 34
+    local outY = 522
+    local outH = 42
+    local outW = math.floor((tableW - 5 * 4) / 6)
     if y >= outY and y <= outY + outH then
         for colIdx = 1, 6 do
-            local cx = tx + (colIdx - 1) * (outW + 2)
+            local cx = tx + (colIdx - 1) * (outW + 4)
             if x >= cx and x <= cx + outW then
                 roulette.curRow = 5
                 roulette.curCol = (colIdx - 1) * 2 + 1

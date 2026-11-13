@@ -1,9 +1,9 @@
 function love.conf(t)
-    t.identity = "stardew_saloon_casino"
+    t.identity = "slot_game"
     t.version = "11.5"
     t.console = false
 
-    t.window.title = "Stardew Saloon Casino"
+    t.window.title = "Slot Game"
     t.window.width = 1024
     t.window.height = 768
     t.window.borderless = false

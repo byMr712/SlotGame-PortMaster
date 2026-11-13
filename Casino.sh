@@ -1,5 +1,5 @@
 #!/bin/bash
-# PortMaster / NextUI Launcher for Stardew Saloon Casino on TrimUI Brick
+# PortMaster / NextUI Launcher for Slot Game on TrimUI Brick
 
 XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
 

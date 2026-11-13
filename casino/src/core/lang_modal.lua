@@ -2,22 +2,22 @@ local langModal = {}
 
 local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
+local ui = require("src.core.ui")
+local fonts = require("src.core.fonts")
 
 langModal.active = false
 langModal.selectedLang = "en"
-langModal.cursorFocus = 1 -- 1: язык (кнопки), 2: чекбокс, 3: кнопка играть
+langModal.cursorFocus = 1 -- 1: язык, 2: чекбокс, 3: кнопка играть
 langModal.langCol = 1     -- 1: English, 2: Русский
 langModal.remember = false
 
 local CONFIG_FILE = "casino_config.json"
 
 function langModal.init()
-    -- Проверяем сохраненные настройки
     if love.filesystem and love.filesystem.getInfo and love.filesystem.getInfo(CONFIG_FILE) then
         local content = love.filesystem.read(CONFIG_FILE)
         if content then
             local ok, data = pcall(function()
-                -- Простой парсер JSON для { "lang": "...", "remember": true/false }
                 local lang = content:match('"lang"%s*:%s*"([^"]+)"')
                 local rem = content:match('"remember"%s*:%s*(true)')
                 return { lang = lang, remember = (rem ~= nil) }
@@ -30,7 +30,6 @@ function langModal.init()
         end
     end
 
-    -- Если не сохранено, открываем окно выбора языка при старте
     langModal.active = true
     langModal.selectedLang = i18n.current or "en"
     langModal.langCol = (langModal.selectedLang == "ru") and 2 or 1
@@ -68,16 +67,16 @@ end
 function langModal.mousepressed(x, y)
     if not langModal.active then return false end
 
-    local mx = 262
-    local my = 194
-    local mw = 500
+    local mw = 540
     local mh = 360
+    local mx = math.floor((1024 - mw) / 2)
+    local my = math.floor((768 - mh) / 2)
 
-    local btnW = 180
-    local btnH = 52
-    local gap = 40
-    local startBtnX = mx + (mw - (btnW * 2 + gap)) / 2
-    local btnY = my + 85
+    local btnW = 190
+    local btnH = 50
+    local gap = 32
+    local startBtnX = mx + math.floor((mw - (btnW * 2 + gap)) / 2)
+    local btnY = my + 82
     local ruX = startBtnX + btnW + gap
 
     -- Клик по кнопке English
@@ -100,21 +99,21 @@ function langModal.mousepressed(x, y)
         return true
     end
 
-    -- Клик по чекбоксу "Запомнить мой выбор"
-    local cbY = my + 175
-    local cbBoxX = mx + 90
-    if x >= cbBoxX and x <= cbBoxX + 320 and y >= cbY - 4 and y <= cbY + 28 then
+    -- Клик по чекбоксу
+    local cbY = my + 162
+    local cbBoxX = mx + 60
+    if x >= cbBoxX and x <= cbBoxX + 420 and y >= cbY - 4 and y <= cbY + 28 then
         langModal.cursorFocus = 2
         langModal.remember = not langModal.remember
         audio.play("click")
         return true
     end
 
-    -- Клик по кнопке "ИГРАТЬ" / "PLAY"
-    local playW = 220
-    local playH = 46
-    local playX = mx + (mw - playW) / 2
-    local playY = my + 230
+    -- Клик по кнопке PLAY
+    local playW = 260
+    local playH = 50
+    local playX = mx + math.floor((mw - playW) / 2)
+    local playY = my + 220
     if x >= playX and x <= playX + playW and y >= playY and y <= playY + playH then
         langModal.cursorFocus = 3
         langModal.confirmPlay()
@@ -168,165 +167,178 @@ end
 function langModal.draw()
     if not langModal.active then return end
 
-    -- Затемнение экрана
+    -- Затемнение экрана с салонной атмосферой
     love.graphics.setColor(0, 0, 0, 0.85)
     love.graphics.rectangle("fill", 0, 0, 1024, 768)
 
-    local mx = 262
-    local my = 194
-    local mw = 500
+    local mw = 540
     local mh = 360
+    local mx = math.floor((1024 - mw) / 2)
+    local my = math.floor((768 - mh) / 2)
 
-    -- Тень окна
-    love.graphics.setColor(0.04, 0.02, 0.01)
-    love.graphics.rectangle("fill", mx + 6, my + 6, mw, mh, 10)
+    -- Внешняя глубокая тень
+    love.graphics.setColor(0, 0, 0, 0.85)
+    love.graphics.rectangle("fill", mx + 8, my + 8, mw, mh, 14)
 
-    -- Корпус окна (темный орех + золотая рамка)
-    love.graphics.setColor(0.16, 0.07, 0.02)
-    love.graphics.rectangle("fill", mx, my, mw, mh, 10)
-    love.graphics.setColor(0.78, 0.52, 0.12)
-    love.graphics.setLineWidth(3)
-    love.graphics.rectangle("line", mx, my, mw, mh, 10)
+    -- Корпус из темного ореха (#220d04)
+    love.graphics.setColor(34/255, 13/255, 4/255, 1)
+    love.graphics.rectangle("fill", mx, my, mw, mh, 12)
+
+    -- Массивная золотая кайма (#c8861e)
+    love.graphics.setColor(200/255, 134/255, 30/255, 1)
+    love.graphics.setLineWidth(4)
+    love.graphics.rectangle("line", mx, my, mw, mh, 12)
     love.graphics.setLineWidth(1)
 
-    -- Внутреннее поле
-    love.graphics.setColor(0.09, 0.04, 0.01)
-    love.graphics.rectangle("fill", mx + 12, my + 12, mw - 24, mh - 24, 8)
-
-    -- Заголовок
-    love.graphics.setColor(1, 0.88, 0.4)
+    -- 1. Заголовок модального окна (SELECT LANGUAGE / ВЫБЕРИТЕ ЯЗЫК)
+    love.graphics.setFont(fonts.md)
     local title = "SELECT LANGUAGE / ВЫБЕРИТЕ ЯЗЫК"
-    local font = love.graphics.getFont()
-    local tw = font and font:getWidth(title) or (#title * 8)
-    love.graphics.print(title, mx + mw / 2 - tw / 2, my + 30)
+    local tw = fonts.md:getWidth(title)
+    local th = fonts.md:getHeight()
+    local tx = math.floor(mx + (mw - tw) / 2)
+    local ty = my + 30
+    love.graphics.setColor(40/255, 16/255, 4/255, 1)
+    love.graphics.print(title, tx + 2, ty + 2)
+    love.graphics.setColor(1, 0.88, 0.4, 1)
+    love.graphics.print(title, tx, ty)
 
-    -- Ряд 1: Кнопки выбора языка друг напротив друга
-    local btnW = 180
-    local btnH = 52
-    local gap = 40
-    local startBtnX = mx + (mw - (btnW * 2 + gap)) / 2
-    local btnY = my + 85
+    -- 2. Кнопки языков
+    local btnW = 190
+    local btnH = 50
+    local gap = 32
+    local startBtnX = mx + math.floor((mw - (btnW * 2 + gap)) / 2)
+    local btnY = my + 82
+    local ruX = startBtnX + btnW + gap
+
+    local isEnSel = (langModal.selectedLang == "en")
+    local isRuSel = (langModal.selectedLang == "ru")
+    local isLangFocus = (langModal.cursorFocus == 1)
 
     -- Кнопка English
-    local isEnSel = (langModal.selectedLang == "en")
-    local isEnFocus = (langModal.cursorFocus == 1 and langModal.langCol == 1)
+    ui.drawSaloonButton(startBtnX, btnY, btnW, btnH, "", fonts.lg, false, isEnSel and 1.0 or 0.72)
     if isEnSel then
-        love.graphics.setColor(0.25, 0.14, 0.04)
-    else
-        love.graphics.setColor(0.12, 0.05, 0.02)
-    end
-    love.graphics.rectangle("fill", startBtnX, btnY, btnW, btnH, 6)
-
-    if isEnFocus then
-        love.graphics.setColor(1, 0.9, 0.3)
-        love.graphics.setLineWidth(3)
-        love.graphics.rectangle("line", startBtnX, btnY, btnW, btnH, 6)
+        love.graphics.setColor(1, 0.88, 0.4, 0.95)
+        love.graphics.setLineWidth(2)
+        love.graphics.rectangle("line", startBtnX - 1, btnY - 1, btnW + 2, btnH + 2, 5)
         love.graphics.setLineWidth(1)
-    elseif isEnSel then
-        love.graphics.setColor(0.78, 0.52, 0.12)
-        love.graphics.rectangle("line", startBtnX, btnY, btnW, btnH, 6)
-    else
-        love.graphics.setColor(0.4, 0.2, 0.08)
-        love.graphics.rectangle("line", startBtnX, btnY, btnW, btnH, 6)
     end
+    love.graphics.setFont(fonts.lg)
+    local enStr = "English"
+    local enW = fonts.lg:getWidth(enStr)
+    local enH = fonts.lg:getHeight()
+    local enTx = math.floor(startBtnX + (btnW - enW) / 2)
+    local enTy = math.floor(btnY + (btnH - enH) / 2)
+    love.graphics.setColor(58/255, 21/255, 2/255, 1)
+    love.graphics.print(enStr, enTx + 2, enTy + 2)
+    love.graphics.setColor(255/255, 248/255, 235/255, 1)
+    love.graphics.print(enStr, enTx, enTy)
 
-    love.graphics.setColor(isEnSel and {1, 0.95, 0.7} or {0.7, 0.6, 0.45})
-    local enText = isEnFocus and "► English ◄" or "English"
-    local etw = font and font:getWidth(enText) or (#enText * 8)
-    love.graphics.print(enText, startBtnX + btnW / 2 - etw / 2, btnY + 18)
+    if isLangFocus and isEnSel then
+        ui.drawArrow(enTx - 16, btnY + btnH / 2, 10, "right", { 1, 0.88, 0.4, 1 })
+        ui.drawArrow(enTx + enW + 16, btnY + btnH / 2, 10, "left", { 1, 0.88, 0.4, 1 })
+    end
 
     -- Кнопка Русский
-    local ruX = startBtnX + btnW + gap
-    local isRuSel = (langModal.selectedLang == "ru")
-    local isRuFocus = (langModal.cursorFocus == 1 and langModal.langCol == 2)
+    ui.drawSaloonButton(ruX, btnY, btnW, btnH, "", fonts.lg, false, isRuSel and 1.0 or 0.72)
     if isRuSel then
-        love.graphics.setColor(0.25, 0.14, 0.04)
-    else
-        love.graphics.setColor(0.12, 0.05, 0.02)
-    end
-    love.graphics.rectangle("fill", ruX, btnY, btnW, btnH, 6)
-
-    if isRuFocus then
-        love.graphics.setColor(1, 0.9, 0.3)
-        love.graphics.setLineWidth(3)
-        love.graphics.rectangle("line", ruX, btnY, btnW, btnH, 6)
+        love.graphics.setColor(1, 0.88, 0.4, 0.95)
+        love.graphics.setLineWidth(2)
+        love.graphics.rectangle("line", ruX - 1, btnY - 1, btnW + 2, btnH + 2, 5)
         love.graphics.setLineWidth(1)
-    elseif isRuSel then
-        love.graphics.setColor(0.78, 0.52, 0.12)
-        love.graphics.rectangle("line", ruX, btnY, btnW, btnH, 6)
-    else
-        love.graphics.setColor(0.4, 0.2, 0.08)
-        love.graphics.rectangle("line", ruX, btnY, btnW, btnH, 6)
+    end
+    love.graphics.setFont(fonts.lg)
+    local ruStr = "Русский"
+    local ruW = fonts.lg:getWidth(ruStr)
+    local ruH = fonts.lg:getHeight()
+    local ruTx = math.floor(ruX + (btnW - ruW) / 2)
+    local ruTy = math.floor(btnY + (btnH - ruH) / 2)
+    love.graphics.setColor(58/255, 21/255, 2/255, 1)
+    love.graphics.print(ruStr, ruTx + 2, ruTy + 2)
+    love.graphics.setColor(255/255, 248/255, 235/255, 1)
+    love.graphics.print(ruStr, ruTx, ruTy)
+
+    if isLangFocus and isRuSel then
+        ui.drawArrow(ruTx - 16, btnY + btnH / 2, 10, "right", { 1, 0.88, 0.4, 1 })
+        ui.drawArrow(ruTx + ruW + 16, btnY + btnH / 2, 10, "left", { 1, 0.88, 0.4, 1 })
     end
 
-    love.graphics.setColor(isRuSel and {1, 0.95, 0.7} or {0.7, 0.6, 0.45})
-    local ruText = isRuFocus and "► Русский ◄" or "Русский"
-    local rtw = font and font:getWidth(ruText) or (#ruText * 8)
-    love.graphics.print(ruText, ruX + btnW / 2 - rtw / 2, btnY + 18)
-
-    -- Ряд 2: Чекбокс "Запомнить мой выбор" на выбранном языке
-    local cbY = my + 175
+    -- 3. Чекбокс "Запомнить мой выбор"
+    local cbY = my + 162
     local isCbFocus = (langModal.cursorFocus == 2)
     local cbBoxSize = 22
-    local cbBoxX = mx + 90
+    local cbBoxX = mx + 68
 
-    -- Квадрат чекбокса
-    love.graphics.setColor(0.14, 0.06, 0.02)
+    love.graphics.setColor(26/255, 8/255, 2/255, 1)
     love.graphics.rectangle("fill", cbBoxX, cbY, cbBoxSize, cbBoxSize, 4)
-    if isCbFocus then
-        love.graphics.setColor(1, 0.88, 0.3)
-        love.graphics.setLineWidth(2.5)
-        love.graphics.rectangle("line", cbBoxX, cbY, cbBoxSize, cbBoxSize, 4)
-        love.graphics.setLineWidth(1)
-    else
-        love.graphics.setColor(0.65, 0.45, 0.15)
-        love.graphics.rectangle("line", cbBoxX, cbY, cbBoxSize, cbBoxSize, 4)
-    end
+    love.graphics.setColor(200/255, 134/255, 30/255, 1)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", cbBoxX, cbY, cbBoxSize, cbBoxSize, 4)
+    love.graphics.setLineWidth(1)
 
-    -- Галочка
     if langModal.remember then
-        love.graphics.setColor(0.2, 0.95, 0.4)
-        love.graphics.setLineWidth(2.5)
-        love.graphics.line(cbBoxX + 4, cbY + 11, cbBoxX + 9, cbY + 17, cbBoxX + 18, cbY + 5)
+        love.graphics.setColor(74/255, 222/255, 128/255, 1)
+        love.graphics.setLineWidth(3)
+        love.graphics.line(cbBoxX + 4, cbY + 11, cbBoxX + 9, cbY + 16, cbBoxX + 17, cbY + 5)
         love.graphics.setLineWidth(1)
     end
 
-    -- Текст чекбокса на текущем языке
     local remText = (langModal.selectedLang == "ru") and "Запомнить мой выбор" or "Remember my choice"
-    love.graphics.setColor(isCbFocus and {1, 0.95, 0.7} or {0.85, 0.75, 0.6})
-    love.graphics.print(remText, cbBoxX + 34, cbY + 3)
+    love.graphics.setFont(fonts.sm)
+    local rth = fonts.sm:getHeight()
+    local rty = math.floor(cbY + (cbBoxSize - rth) / 2)
+    love.graphics.setColor(40/255, 16/255, 4/255, 1)
+    love.graphics.print(remText, cbBoxX + cbBoxSize + 14 + 1, rty + 1)
+    if isCbFocus then
+        love.graphics.setColor(1, 0.88, 0.4, 1)
+    else
+        love.graphics.setColor(255/255, 234/255, 173/255, 1)
+    end
+    love.graphics.print(remText, cbBoxX + cbBoxSize + 14, rty)
 
-    -- Ряд 3: Кнопка "Играть" / "Play"
-    local playW = 220
-    local playH = 46
-    local playX = mx + (mw - playW) / 2
-    local playY = my + 230
+    if isCbFocus then
+        ui.drawArrow(cbBoxX - 14, cbY + cbBoxSize / 2, 8, "right", { 1, 0.88, 0.4, 1 })
+    end
+
+    -- 4. Кнопка PLAY / ИГРАТЬ
+    local playW = 260
+    local playH = 50
+    local playX = mx + math.floor((mw - playW) / 2)
+    local playY = my + 220
     local isPlayFocus = (langModal.cursorFocus == 3)
 
-    -- Корпус кнопки Play (салунный рубин / орех)
-    love.graphics.setColor(0.65, 0.18, 0.12)
-    love.graphics.rectangle("fill", playX, playY, playW, playH, 6)
+    ui.drawSaloonButtonRed(playX, playY, playW, playH, isPlayFocus and love.keyboard.isDown("a", "space", "return"))
+
+    love.graphics.setFont(fonts.lg)
+    local playLabel = (langModal.selectedLang == "ru") and "ИГРАТЬ" or "PLAY"
+    local plw = fonts.lg:getWidth(playLabel)
+    local plh = fonts.lg:getHeight()
+    local plTx = math.floor(playX + (playW - plw) / 2)
+    local plTy = math.floor(playY + (playH - plh) / 2)
+
+    love.graphics.setColor(59/255, 8/255, 2/255, 1)
+    love.graphics.print(playLabel, plTx + 2, plTy + 2)
+    love.graphics.setColor(255/255, 250/255, 240/255, 1)
+    love.graphics.print(playLabel, plTx, plTy)
+
     if isPlayFocus then
-        love.graphics.setColor(1, 0.88, 0.3)
+        love.graphics.setColor(1, 0.88, 0.4, 0.95)
         love.graphics.setLineWidth(3)
-        love.graphics.rectangle("line", playX, playY, playW, playH, 6)
+        love.graphics.rectangle("line", playX - 2, playY - 2, playW + 4, playH + 4, 6)
         love.graphics.setLineWidth(1)
-    else
-        love.graphics.setColor(0.85, 0.45, 0.25)
-        love.graphics.rectangle("line", playX, playY, playW, playH, 6)
+        ui.drawArrow(playX - 16, playY + playH / 2, 10, "right", { 1, 0.88, 0.4, 1 })
+        ui.drawArrow(playX + playW + 16, playY + playH / 2, 10, "left", { 1, 0.88, 0.4, 1 })
     end
 
-    love.graphics.setColor(1, 1, 1)
-    local playLabel = (langModal.selectedLang == "ru") and "ИГРАТЬ" or "PLAY"
-    if isPlayFocus then playLabel = "► " .. playLabel .. " ◄" end
-    local ptw = font and font:getWidth(playLabel) or (#playLabel * 8)
-    love.graphics.print(playLabel, playX + playW / 2 - ptw / 2, playY + 16)
-
-    -- Подсказка управления
-    love.graphics.setColor(0.7, 0.55, 0.3)
-    local hint = "[◄/▲/▼/►] SELECT   •   [A] CONFIRM"
-    local htw = font and font:getWidth(hint) or (#hint * 7)
-    love.graphics.print(hint, mx + mw / 2 - htw / 2, my + 305)
+    -- 5. Подсказка управления внизу
+    love.graphics.setFont(fonts.xs)
+    local hint = (langModal.selectedLang == "ru") and "[◀/▲/▼/▶] ВЫБОР   •   [A] ПОДТВЕРДИТЬ" or "[◀/▲/▼/▶] SELECT   •   [A] CONFIRM"
+    local hw = fonts.xs:getWidth(hint)
+    local hx = math.floor(mx + (mw - hw) / 2)
+    local hy = my + mh - 30
+    love.graphics.setColor(40/255, 16/255, 4/255, 1)
+    love.graphics.print(hint, hx + 1, hy + 1)
+    love.graphics.setColor(255/255, 234/255, 173/255, 0.8)
+    love.graphics.print(hint, hx, hy)
 end
 
 return langModal

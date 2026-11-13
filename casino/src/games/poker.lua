@@ -4,16 +4,10 @@ local economy = require("src.core.economy")
 local i18n = require("src.core.i18n")
 local audio = require("src.core.audio")
 local sprites = require("src.core.sprites")
+local fonts = require("src.core.fonts")
+local ui = require("src.core.ui")
 local betModal = require("src.core.bet_modal")
 local bankruptModal = require("src.core.bankrupt_modal")
-
-local cardFont = nil
-local function getCardFont()
-    if not cardFont and love.graphics and love.graphics.newFont then
-        pcall(function() cardFont = love.graphics.newFont(24) end)
-    end
-    return cardFont
-end
 
 poker.bet = 500
 poker.deck = {}
@@ -23,7 +17,6 @@ poker.phase = "draw"
 poker.focusCard = 1
 poker.comboKey = "select_hold"
 poker.comboWin = 0
-poker.dealAnim = 1
 poker.betDeducted = false
 poker.autoRestartTimer = 0
 poker.controlMode = 0 -- 0: ABX (A=Hold, X=Draw), 1: D-Pad (Down=Hold, Up=Draw)
@@ -165,10 +158,12 @@ function poker.doDraw()
     end
 
     audio.play("click")
+    local repIdx = 0
     for i = 1, 5 do
         if not poker.holds[i] then
             local c = table.remove(poker.deck)
-            c.anim = 0.0
+            c.anim = -(repIdx * 0.10)
+            repIdx = repIdx + 1
             poker.hand[i] = c
         end
     end
@@ -199,14 +194,13 @@ function poker.doDraw()
 end
 
 function poker.update(dt)
-    -- Автоматическая сдача карт, если игра еще не запускалась или стол пуст
     if #poker.hand == 0 and economy.getBalance() > 0 and not bankruptModal.active then
         poker.deal()
     end
 
     for _, c in ipairs(poker.hand) do
         if c.anim and c.anim < 1 then
-            c.anim = math.min(1, c.anim + dt * 2.2)
+            c.anim = math.min(1, c.anim + dt * 4.0)
         end
     end
 
@@ -223,254 +217,175 @@ function poker.update(dt)
     end
 end
 
-local function drawCard(c, x, y, held, focused)
-    local cw, ch = 166, 236
-    love.graphics.setColor(0.12, 0.05, 0.02)
-    love.graphics.rectangle("fill", x, y, cw, ch, 6)
-    love.graphics.setColor(0.98, 0.93, 0.82)
-    love.graphics.rectangle("fill", x + 3, y + 3, cw - 6, ch - 6, 4)
-
-    if focused then
-        -- Яркая золотая рамка фокуса карты с мягким ореолом
-        love.graphics.setColor(1, 0.85, 0.15, 0.45)
-        love.graphics.setLineWidth(6)
-        love.graphics.rectangle("line", x - 4, y - 4, cw + 8, ch + 8, 8)
-        love.graphics.setColor(1, 0.90, 0.3)
-        love.graphics.setLineWidth(3)
-        love.graphics.rectangle("line", x - 3, y - 3, cw + 6, ch + 6, 7)
-        love.graphics.setColor(1, 1, 0.8)
-        love.graphics.setLineWidth(1)
-        love.graphics.rectangle("line", x - 2, y - 2, cw + 4, ch + 4, 6)
-        love.graphics.setLineWidth(1)
-
-        -- Золотой указатель фокуса сверху карты
-        love.graphics.setColor(1, 0.88, 0.2)
-        local arrowX = x + cw / 2
-        local arrowY = y - 8
-        love.graphics.polygon("fill", arrowX - 8, arrowY - 8, arrowX + 8, arrowY - 8, arrowX, arrowY)
-    end
-
-    local isRed = (c.suit == "heart" or c.suit == "diamond")
-    if isRed then love.graphics.setColor(0.75, 0.15, 0.1) else love.graphics.setColor(0.1, 0.05, 0.02) end
-
-    local oldFont = love.graphics.getFont()
-    local cFont = getCardFont()
-    if cFont then love.graphics.setFont(cFont) end
-
-    love.graphics.print(c.name, x + 10, y + 10)
-    local tw = love.graphics.getFont():getWidth(c.name)
-    love.graphics.print(c.name, x + cw - 12 - tw, y + ch - 34)
-
-    love.graphics.setFont(oldFont)
-
-    sprites.draw(c.suit, x + cw / 2, y + ch / 2, 56)
-
-    if held then
-        love.graphics.setColor(0.7, 0.15, 0.1)
-        love.graphics.rectangle("fill", x + (cw - 90) / 2, y - 42, 90, 22, 4)
-        love.graphics.setColor(1, 0.88, 0.4)
-        love.graphics.setLineWidth(1.5)
-        love.graphics.rectangle("line", x + (cw - 90) / 2, y - 42, 90, 22, 4)
-        love.graphics.setLineWidth(1)
-        love.graphics.setColor(1, 1, 1)
-        local hTxt = i18n.t("hold")
-        local hw = love.graphics.getFont() and love.graphics.getFont():getWidth(hTxt) or 32
-        love.graphics.print(hTxt, x + (cw - 90) / 2 + (90 - hw) / 2, y - 38)
-    end
-end
-
 function poker.draw()
-    local font = love.graphics.getFont()
-
-    -- Таблица комбинаций сверху (высота 52px, внутри сукна)
-    love.graphics.setColor(0.18, 0.08, 0.03)
-    love.graphics.rectangle("fill", 40, 86, 944, 52, 4)
-    love.graphics.setColor(0.78, 0.52, 0.12)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", 40, 86, 944, 52, 4)
-    love.graphics.setLineWidth(1)
+    -- 1. Верхняя таблица комбинаций (5 утопленных плашек ровно как в HTML-макете)
+    ui.drawBrassPlaque(34, 90, 956, 64, 4)
 
     local combos = {
-        { name = "ROYAL", mult = "x800" },
-        { name = "STR FLUSH", mult = "x50" },
-        { name = "4 OF KIND", mult = "x25" },
-        { name = "FULL HOUSE", mult = "x9" },
-        { name = "JACKS+", mult = "x1" },
+        { key = "royal_flush", en = "ROYAL", ru = "РОЯЛЬ", mult = "x800" },
+        { key = "straight_flush", en = "STR FLUSH", ru = "СТРИТ ФЛЕШ", mult = "x50" },
+        { key = "four_of_a_kind", en = "4 OF KIND", ru = "КАРЕ", mult = "x25" },
+        { key = "full_house", en = "FULL HOUSE", ru = "ФУЛЛ ХАУС", mult = "x9" },
+        { key = "jacks_or_better", en = "JACKS+", ru = "ВАЛЕТЫ+", mult = "x1" }
     }
 
-    local padX = 6
     local gap = 8
-    local totalW = 944 - padX * 2
-    local cellW = math.floor((totalW - (#combos - 1) * gap) / #combos)
-    local cellH = 42
-    local cellY = 91
+    local boxW = math.floor((956 - 16 - 4 * gap) / 5)
+    local boxH = 48
+    local boxY = 98
 
     for i, c in ipairs(combos) do
-        local bx = 40 + padX + (i - 1) * (cellW + gap)
+        local bx = 34 + 8 + (i - 1) * (boxW + gap)
+        local isWinCombo = (poker.phase == "result" and poker.comboKey == c.key)
 
-        -- Фон и рамка ячейки
-        love.graphics.setColor(0.12, 0.05, 0.02)
-        love.graphics.rectangle("fill", bx, cellY, cellW, cellH, 4)
-        love.graphics.setColor(0.36, 0.16, 0.06)
-        love.graphics.rectangle("line", bx, cellY, cellW, cellH, 4)
+        -- Фон ячейки
+        if isWinCombo then
+            love.graphics.setColor(92/255, 40/255, 14/255)
+        else
+            love.graphics.setColor(32/255, 12/255, 5/255)
+        end
+        love.graphics.rectangle("fill", bx, boxY, boxW, boxH, 4)
+
+        if isWinCombo then
+            love.graphics.setColor(1, 0.88, 0.4)
+            love.graphics.setLineWidth(2)
+            love.graphics.rectangle("line", bx, boxY, boxW, boxH, 4)
+            love.graphics.setLineWidth(1)
+        else
+            love.graphics.setColor(92/255, 40/255, 14/255)
+            love.graphics.rectangle("line", bx, boxY, boxW, boxH, 4)
+        end
 
         -- Название комбинации
+        local cName = (i18n.current == "ru") and c.ru or c.en
+        love.graphics.setFont(fonts.xs)
         love.graphics.setColor(1, 0.88, 0.4)
-        local ntw = font and font:getWidth(c.name) or (#c.name * 8)
-        love.graphics.print(c.name, bx + (cellW - ntw * 1.1) / 2, cellY + 6, 0, 1.1, 1.1)
+        local ntw = fonts.xs:getWidth(cName)
+        love.graphics.print(cName, math.floor(bx + (boxW - ntw) / 2), boxY + 8)
 
-        -- Множитель крупным шрифтом
-        love.graphics.setColor(1, 0.92, 0.45)
-        local mtw = font and font:getWidth(c.mult) or (#c.mult * 8)
-        love.graphics.print(c.mult, bx + (cellW - mtw * 1.2) / 2, cellY + 23, 0, 1.2, 1.2)
+        -- Множитель
+        love.graphics.setFont(fonts.sm)
+        love.graphics.setColor(255/255, 224/255, 102/255)
+        local mtw = fonts.sm:getWidth(c.mult)
+        love.graphics.print(c.mult, math.floor(bx + (boxW - mtw) / 2), boxY + 26)
     end
 
-    -- 5 карт одного увеличенного размера (по умолчанию стол пуст, при раздаче карты анимируются)
-    local startX = 45
-    local startY = 184
-    local cw, ch = 166, 236
-    local step = 192
+    -- 2. 5 карт покера (150x214, центрированы по горизонтали и вертикали)
+    local cw = 150
+    local ch = 214
+    local cardGap = 20
+    local totalCardsW = 5 * cw + 4 * cardGap
+    local startX = math.floor((1024 - totalCardsW) / 2)
+    local startY = 224
 
-    if #poker.hand == 0 then
-        for i = 1, 5 do
-            local x = startX + (i - 1) * step
-            love.graphics.setColor(0.12, 0.05, 0.02, 0.4)
-            love.graphics.rectangle("fill", x, startY, cw, ch, 6)
-            love.graphics.setColor(0.55, 0.26, 0.08, 0.45)
-            love.graphics.setLineWidth(2)
-            love.graphics.rectangle("line", x, startY, cw, ch, 6)
-            love.graphics.setLineWidth(1)
-            love.graphics.setColor(0.7, 0.5, 0.2, 0.35)
-
-            local oldFont = love.graphics.getFont()
-            local cFont = getCardFont()
-            if cFont then love.graphics.setFont(cFont) end
-            local lbl = "CARD " .. i
-            local lw = love.graphics.getFont():getWidth(lbl)
-            love.graphics.print(lbl, x + (cw - lw) / 2, startY + 100)
-            love.graphics.setFont(oldFont)
-        end
-    else
-        for i, c in ipairs(poker.hand) do
-            local x = startX + (i - 1) * step
-            local anim = c.anim or 1
-            if anim >= 0 then
-                local p = math.min(1, anim)
-                local ease = 1 - math.pow(1 - p, 3)
-                local yOff = (1 - ease) * -65
-                drawCard(c, x, startY + yOff, poker.holds[i], (poker.phase == "draw" and i == (poker.focusCard or 1)))
-            end
+    for i, c in ipairs(poker.hand) do
+        local anim = c.anim or 1
+        if anim >= 0 then
+            local p = math.min(1, anim)
+            local ease = 1 - math.pow(1 - p, 3)
+            local yOff = (1 - ease) * -75
+            local xOff = (1 - ease) * 35
+            local x = startX + (i - 1) * (cw + cardGap) + xOff
+            local isFocus = (poker.phase == "draw" and i == (poker.focusCard or 1))
+            ui.drawCard(c, x, startY + yOff, cw, ch, poker.holds[i], isFocus, false)
         end
     end
 
-    -- Статус
-    love.graphics.setColor(0.18, 0.08, 0.03)
-    love.graphics.rectangle("fill", 40, 450, 944, 44, 4)
-    love.graphics.setColor(0.78, 0.52, 0.12)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", 40, 450, 944, 44, 4)
-    love.graphics.setLineWidth(1)
-    love.graphics.setColor(1, 0.88, 0.4)
-    local font = love.graphics.getFont()
+    -- 3. Статус / Комбинация по центру
     local cText = poker.getComboText()
-    local tw = font and font:getWidth(cText) or (#cText * 8)
-    love.graphics.print(cText, 512 - tw / 2, 464)
+    if cText and cText ~= "" then
+        love.graphics.setFont(fonts.sm)
+        local tw = fonts.sm:getWidth(cText)
+        local pw = math.max(300, tw + 48)
+        local px = math.floor(512 - pw / 2)
+        ui.drawBrassPlaque(px, 480, pw, 38, 4)
+        love.graphics.setColor(1, 0.88, 0.4)
+        love.graphics.print(cText, math.floor(512 - tw / 2), 492)
+    end
 
-    -- Нижняя панель
-    love.graphics.setColor(0.22, 0.1, 0.04)
-    love.graphics.rectangle("fill", 40, 560, 944, 60, 4)
+    -- 4. Нижняя панель действий (точно вровень со всеми залами)
+    ui.drawBrassPlaque(34, 678, 956, 64, 4)
 
     -- Панель ставки [Y]
-    love.graphics.setColor(0.12, 0.05, 0.02)
-    love.graphics.rectangle("fill", 55, 566, 260, 48, 4)
-    love.graphics.setColor(0.78, 0.52, 0.12)
-    love.graphics.rectangle("line", 55, 566, 260, 48, 4)
+    local betX = 48
+    local betY = 684
+    local betW = 180
+    local betH = 52
+    love.graphics.setColor(27/255, 10/255, 4/255, 1)
+    love.graphics.rectangle("fill", betX, betY, betW, betH, 4)
+    love.graphics.setColor(120/255, 79/255, 24/255, 1)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", betX, betY, betW, betH, 4)
+    love.graphics.setLineWidth(1)
 
     -- Желтый значок [Y]
-    local font = love.graphics.getFont()
-    local cx, cy = 76, 590
-    love.graphics.setColor(0.96, 0.78, 0.2)
-    love.graphics.circle("fill", cx, cy, 12)
-    love.graphics.setColor(0.08, 0.03, 0.01)
-    love.graphics.setLineWidth(1.5)
-    love.graphics.circle("line", cx, cy, 12)
-    love.graphics.setLineWidth(1)
-    local kw = font and font:getWidth("Y") or 8
-    local kh = font and font:getHeight() or 14
-    local tx = math.floor(cx - kw / 2)
-    local ty = math.floor(cy - kh / 2)
-    love.graphics.print("Y", tx, ty)
-    love.graphics.print("Y", tx + 1, ty)
+    ui.drawButtonBadge(betX + 22, betY + betH / 2, 12, "Y")
 
-    love.graphics.setColor(0.9, 0.8, 0.55)
-    love.graphics.print(i18n.t("bet") .. ":", 96, 574)
-    love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(economy.format(poker.bet), 96, 590)
+    love.graphics.setFont(fonts.xs)
+    love.graphics.setColor(255/255, 234/255, 173/255, 1)
+    love.graphics.print(i18n.t("bet") .. ":", betX + 44, betY + 9)
+    love.graphics.setFont(fonts.md)
+    love.graphics.setColor(1, 0.88, 0.4, 1)
+    love.graphics.print(economy.format(poker.bet), betX + 44, betY + 25)
 
     if poker.phase == "draw" and poker.betDeducted then
+        love.graphics.setFont(fonts.xs)
         love.graphics.setColor(0.6, 0.5, 0.4)
-        love.graphics.print("(LOCKED)", 205, 590)
+        love.graphics.print("(LOCKED)", betX + 96, betY + 9)
     end
 
-    local function drawGameBtn(bx, by, bw, bh, bCol, keyCol, dir, label)
-        love.graphics.setColor(0.08, 0.03, 0.01)
-        love.graphics.rectangle("fill", bx, by, bw, bh, 4)
-        love.graphics.setColor(bCol[1], bCol[2], bCol[3])
-        love.graphics.rectangle("fill", bx + 2, by + 2, bw - 4, bh - 4, 3)
-        love.graphics.setColor(bCol[1] * 1.35, bCol[2] * 1.35, bCol[3] * 1.35)
-        love.graphics.rectangle("line", bx + 2, by + 2, bw - 4, bh - 4, 3)
+    -- Кнопки действий: HOLD (A), DRAW (X), SWITCH (R2)
+    local btnY = 686
+    local btnH = 48
 
-        local cx = bx + 18
-        local cy = by + bh / 2
-        love.graphics.setColor(keyCol[1], keyCol[2], keyCol[3])
-        love.graphics.circle("fill", cx, cy, 11)
-        love.graphics.setColor(0.08, 0.03, 0.01)
-        love.graphics.setLineWidth(1.5)
-        love.graphics.circle("line", cx, cy, 11)
-        love.graphics.setLineWidth(1)
-
-        -- Стрелка D-Pad или буквенная метка
-        love.graphics.setColor(0.08, 0.03, 0.01)
-        if dir == "up" then
-            love.graphics.rectangle("fill", cx - 1, cy - 5, 2, 2)
-            love.graphics.rectangle("fill", cx - 3, cy - 3, 6, 2)
-            love.graphics.rectangle("fill", cx - 5, cy - 1, 10, 2)
-            love.graphics.rectangle("fill", cx - 2, cy + 1, 4, 4)
-        elseif dir == "down" then
-            love.graphics.rectangle("fill", cx - 2, cy - 5, 4, 4)
-            love.graphics.rectangle("fill", cx - 5, cy - 1, 10, 2)
-            love.graphics.rectangle("fill", cx - 3, cy + 1, 6, 2)
-            love.graphics.rectangle("fill", cx - 1, cy + 3, 2, 2)
-        else
-            local font = love.graphics.getFont()
-            local kw = font and font:getWidth(dir) or (#dir * 8)
-            local kh = font and font:getHeight() or 14
-            local tx = math.floor(cx - kw / 2)
-            local ty = math.floor(cy - kh / 2)
-            love.graphics.print(dir, tx, ty)
-            love.graphics.print(dir, tx + 1, ty)
-        end
-
-        love.graphics.setColor(1, 1, 1)
-        love.graphics.print(label, bx + 36, cy - 7)
-    end
-
+    -- HOLD
+    local holdX = 420
+    local holdW = 140
+    ui.drawSaloonButton(holdX, btnY, holdW, btnH, "")
     local holdLabel = i18n.t("hold")
+    love.graphics.setFont(fonts.lg)
+    local htw = fonts.lg:getWidth(holdLabel)
+    local hth = fonts.lg:getHeight()
+    local totalHldW = 22 + 10 + htw
+    local hldStartX = holdX + math.floor((holdW - totalHldW) / 2)
+    local holdBadge = (poker.controlMode == 0) and "A" or "down"
+    ui.drawButtonBadge(hldStartX + 11, btnY + btnH / 2, 11, holdBadge, 1.0, "green")
+    love.graphics.setFont(fonts.lg)
+    love.graphics.setColor(255/255, 248/255, 235/255)
+    love.graphics.print(holdLabel, hldStartX + 32, math.floor(btnY + (btnH - hth) / 2))
+
+    -- DRAW
+    local drawX = 574
+    local drawW = 190
+    ui.drawSaloonButtonRed(drawX, btnY, drawW, btnH)
     local drawLabel = i18n.t("draw")
+    love.graphics.setFont(fonts.lg)
+    local dtw = fonts.lg:getWidth(drawLabel)
+    local dth = fonts.lg:getHeight()
+    local totalDrawW = 24 + 12 + dtw
+    local drawStartX = drawX + math.floor((drawW - totalDrawW) / 2)
+    local drawBadge = (poker.controlMode == 0) and "X" or "up"
+    ui.drawButtonBadge(drawStartX + 12, btnY + btnH / 2, 12, drawBadge, 1.0, "blue")
+    love.graphics.setFont(fonts.lg)
+    love.graphics.setColor(59/255, 8/255, 2/255)
+    love.graphics.print(drawLabel, drawStartX + 36 + 2, math.floor(btnY + (btnH - dth) / 2) + 2)
+    love.graphics.setColor(255/255, 255/255, 255/255)
+    love.graphics.print(drawLabel, drawStartX + 36, math.floor(btnY + (btnH - dth) / 2))
+
+    -- SWITCH (R2)
+    local swX = 778
+    local swW = 198
+    ui.drawSaloonButton(swX, btnY, swW, btnH, "")
     local switchLabel = i18n.t("switch")
-
-    if poker.phase == "draw" and poker.autoRestartTimer == 0 then
-        if poker.controlMode == 0 then
-            drawGameBtn(510, 570, 140, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "A", holdLabel)
-            drawGameBtn(675, 570, 145, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "X", drawLabel)
-        else
-            drawGameBtn(510, 570, 140, 40, {0.68, 0.32, 0.1}, {0.2, 0.78, 0.35}, "down", holdLabel)
-            drawGameBtn(675, 570, 145, 40, {0.75, 0.16, 0.1}, {0.32, 0.62, 0.96}, "up", drawLabel)
-        end
-    end
-
-    -- Кнопка SWITCH (R2) справа всегда видна
-    drawGameBtn(840, 570, 140, 40, {0.68, 0.32, 0.1}, {0.96, 0.78, 0.2}, "R2", switchLabel)
+    love.graphics.setFont(fonts.lg)
+    local swtw = fonts.lg:getWidth(switchLabel)
+    local swth = fonts.lg:getHeight()
+    local totalSwW = 22 + 10 + swtw
+    local swStartX = swX + math.floor((swW - totalSwW) / 2)
+    ui.drawButtonBadge(swStartX + 11, btnY + btnH / 2, 11, "R2", 1.0, "yellow")
+    love.graphics.setFont(fonts.lg)
+    love.graphics.setColor(255/255, 248/255, 235/255)
+    love.graphics.print(switchLabel, swStartX + 32, math.floor(btnY + (btnH - swth) / 2))
 end
 
 function poker.keypressed(key)
@@ -523,8 +438,8 @@ function poker.keypressed(key)
 end
 
 function poker.mousepressed(x, y)
-    -- Окно ставки [Y] (щедрая зона клика)
-    if x >= 40 and x <= 335 and y >= 550 and y <= 620 then
+    -- Окно ставки [Y]
+    if x >= 44 and x <= 235 and y >= 680 and y <= 740 then
         if poker.phase == "draw" and poker.betDeducted then
             audio.play("fail")
             return true
@@ -535,11 +450,17 @@ function poker.mousepressed(x, y)
         return true
     end
 
-    -- Клик по картам: y in 150..440
-    if poker.phase == "draw" and poker.autoRestartTimer == 0 and y >= 150 and y <= 440 then
+    -- Клик по картам
+    local cw = 150
+    local cardGap = 20
+    local totalCardsW = 5 * cw + 4 * cardGap
+    local startX = math.floor((1024 - totalCardsW) / 2)
+    local startY = 224
+
+    if poker.phase == "draw" and poker.autoRestartTimer == 0 and y >= 210 and y <= 450 then
         for i = 1, 5 do
-            local cx = 45 + (i - 1) * 192
-            if x >= cx and x <= cx + 166 then
+            local cx = startX + (i - 1) * (cw + cardGap)
+            if x >= cx and x <= cx + cw then
                 poker.focusCard = i
                 poker.toggleHold(i)
                 return true
@@ -547,20 +468,21 @@ function poker.mousepressed(x, y)
         end
     end
 
-    -- Кнопка HOLD: 510..650
-    if poker.phase == "draw" and poker.autoRestartTimer == 0 and x >= 510 and x <= 650 and y >= 570 and y <= 610 then
+    -- Кнопки действий:
+    -- HOLD: 420, 686, 140, 48
+    if poker.phase == "draw" and poker.autoRestartTimer == 0 and x >= 420 and x <= 560 and y >= 680 and y <= 740 then
         poker.toggleHold(poker.focusCard)
         return true
     end
 
-    -- Кнопка DRAW: 675..820
-    if poker.phase == "draw" and poker.autoRestartTimer == 0 and x >= 675 and x <= 820 and y >= 570 and y <= 610 then
+    -- DRAW: 574, 686, 190, 48
+    if poker.phase == "draw" and poker.autoRestartTimer == 0 and x >= 574 and x <= 764 and y >= 680 and y <= 740 then
         poker.doDraw()
         return true
     end
 
-    -- Кнопка SWITCH: 840..980
-    if x >= 840 and x <= 980 and y >= 570 and y <= 610 then
+    -- SWITCH: 778, 686, 198, 48
+    if x >= 778 and x <= 978 and y >= 680 and y <= 740 then
         poker.toggleControlMode()
         return true
     end

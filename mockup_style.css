@@ -1,0 +1,435 @@
+
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    * {
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Press Start 2P', monospace;
+      background-color: #080302;
+      color: #fff6d9;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ФИКСИРОВАННЫЙ КОРПУС 1024x768 (СТРОГО БЕЗ СДВИГОВ) */
+    .cabinet-viewport {
+      width: 1024px;
+      height: 768px;
+      min-width: 1024px;
+      max-width: 1024px;
+      min-height: 768px;
+      max-height: 768px;
+      background-color: #240e04;
+      border: 6px solid #140702;
+      box-shadow: 
+        inset 4px 4px 0 #7e3911,
+        inset -4px -4px 0 #3a1403,
+        0 12px 30px rgba(0,0,0,0.95);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 8px 10px;
+    }
+
+    .brass-plaque {
+      background: linear-gradient(180deg, #38180a 0%, #220d04 100%);
+      border: 3px solid #140702;
+      box-shadow: 
+        inset 2px 2px 0 #c8861e,
+        inset -2px -2px 0 #5c280e,
+        0 2px 0 rgba(0,0,0,0.5);
+      color: #ffe066;
+      text-shadow: 2px 2px 0 #180802;
+    }
+
+    .parchment-panel {
+      background: #faecc3;
+      border: 3px solid #140702;
+      box-shadow: 
+        inset 3px 3px 0 #fff9df,
+        inset -3px -3px 0 #be9145,
+        0 3px 0 #140702;
+      color: #2b1206;
+    }
+
+    .poker-card-focused {
+      border: 4px solid #ffe066 !important;
+      outline: 4px solid #fff9df !important;
+      outline-offset: 2px !important;
+      box-shadow: 
+        0 0 25px rgba(255, 224, 102, 1),
+        0 0 10px #ffe066,
+        inset 0 0 10px rgba(255, 224, 102, 0.4),
+        inset 3px 3px 0 #fff9df,
+        inset -3px -3px 0 #be9145,
+        0 4px 6px rgba(0,0,0,0.8) !important;
+      transform: translateY(-8px);
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .saloon-felt {
+      background-color: #0b2915;
+      background-image: 
+        radial-gradient(#103d1f 20%, transparent 20%),
+        radial-gradient(#082111 20%, transparent 20%);
+      background-size: 8px 8px;
+      background-position: 0 0, 4px 4px;
+      border: 4px solid #140702;
+      box-shadow: inset 6px 6px 0 #05140a, inset -6px -6px 0 #18522b;
+    }
+
+    .saloon-btn {
+      background: linear-gradient(180deg, #c7661b 0%, #a24b0f 50%, #753106 100%);
+      color: #fff8eb;
+      text-shadow: 2px 2px 0 #3a1502;
+      border: 3px solid #140702;
+      border-radius: 4px;
+      box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.4),
+        inset 2px 2px 0 #fca868,
+        inset -2px -2px 0 #521e02,
+        0 4px 0 #000,
+        0 5px 8px rgba(0, 0, 0, 0.4);
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+      transition: filter 0.12s ease, transform 0.06s ease, box-shadow 0.06s ease;
+    }
+    .saloon-btn:hover { 
+      filter: brightness(1.12);
+    }
+    .saloon-btn:active, .saloon-btn.active {
+      background: linear-gradient(180deg, #753106 0%, #a24b0f 100%);
+      box-shadow: 
+        inset 2px 2px 0 #3b1401, 
+        inset -2px -2px 0 #d47024, 
+        0 1px 0 #000;
+      transform: translateY(2px);
+    }
+
+    .saloon-btn-red {
+      background: linear-gradient(180deg, #d63220 0%, #aa1e10 50%, #7e1207 100%);
+      color: #fffaf0;
+      text-shadow: 2px 2px 0 #3a0802;
+      border: 3px solid #140702;
+      border-radius: 4px;
+      box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.4),
+        inset 2px 2px 0 #f76857,
+        inset -2px -2px 0 #520b04,
+        0 4px 0 #000,
+        0 6px 12px rgba(0, 0, 0, 0.5);
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+      transition: filter 0.12s ease, transform 0.06s ease, box-shadow 0.06s ease;
+    }
+    .saloon-btn-red:hover { 
+      filter: brightness(1.12);
+    }
+    .saloon-btn-red:active {
+      background: linear-gradient(180deg, #7e1207 0%, #aa1e10 100%);
+      box-shadow: 
+        inset 2px 2px 0 #3a0501, 
+        inset -2px -2px 0 #e63f2e, 
+        0 1px 0 #000;
+      transform: translateY(3px);
+    }
+
+    /* ==================== АВТОМАТ: НЕПРЕРЫВНЫЙ АУТЕНТИЧНЫЙ МЕХАНИЧЕСКИЙ БАРАБАН (НЕ БУМАГА!) ==================== */
+    /* Окно барабана со стеклянным глубоким затемнением, золотой рамой и скругленными углами */
+    .mechanical-drum-viewport {
+      background: #0d0502;
+      border: 4px solid #d4af37;
+      border-radius: 20px;
+      box-shadow: 
+        0 0 0 2px #5c280e,
+        0 0 14px rgba(212, 175, 55, 0.5),
+        inset 0 85px 45px -10px rgba(0,0,0,0.98), 
+        inset 0 -85px 45px -10px rgba(0,0,0,0.98),
+        inset 10px 0 20px rgba(0,0,0,0.9),
+        inset -10px 0 20px rgba(0,0,0,0.9),
+        0 4px 10px rgba(0,0,0,0.7);
+      height: 360px;
+      overflow: hidden;
+      position: relative;
+      perspective: 900px;
+      transform-style: preserve-3d;
+      flex: 1;
+      isolation: isolate;
+    }
+
+    /* Блик смотрового стекла автомата поверх барабана */
+    .mechanical-drum-viewport::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(135deg, 
+        rgba(255,255,255,0.18) 0%, 
+        rgba(255,255,255,0.03) 28%, 
+        transparent 40%, 
+        rgba(255,255,255,0.08) 55%, 
+        transparent 70%);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Верхняя и нижняя цилиндрическая тень кривизны барабана */
+    .mechanical-drum-viewport::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(180deg, 
+        rgba(0,0,0,0.95) 0%, 
+        rgba(15,6,2,0.65) 20%, 
+        transparent 34%, 
+        transparent 66%, 
+        rgba(15,6,2,0.65) 80%, 
+        rgba(0,0,0,0.95) 100%);
+      pointer-events: none;
+      z-index: 9;
+    }
+
+    /* Аутентичная эмалированная / никелированная металлическая лента барабана */
+    .continuous-tape {
+      width: 100%;
+      background: #fdfaf0;
+      background-image: linear-gradient(90deg, 
+        #1c0c04 0%, 
+        #44230c 2.5%, 
+        #9c8058 6.5%, 
+        #f8f0dd 16%, 
+        #ffffff 50%, 
+        #faf2df 84%, 
+        #947851 93.5%, 
+        #3d1e09 97.5%, 
+        #140501 100%);
+      position: absolute;
+      left: 0;
+      right: 0;
+      will-change: transform;
+    }
+
+    /* Ячейка ленты с литым латунным 3D ребром-разделителем вместо бумажного пунктира */
+    .tape-slot {
+      width: 100%;
+      height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transform-style: preserve-3d;
+      backface-visibility: hidden;
+      will-change: transform, filter;
+    }
+
+    /* Литое металлическое разделительное ребро барабана с фаской и золотым блеском */
+    .tape-slot::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: linear-gradient(180deg, 
+        #ffe899 0%, 
+        #c88e28 35%, 
+        #7a450a 70%, 
+        #3b1b02 100%);
+      box-shadow: 
+        0 3px 5px rgba(0,0,0,0.7), 
+        0 -1px 0 rgba(255,255,255,0.45);
+      z-index: 5;
+    }
+
+    /* Латунные заклепки по краям разделительного ребра */
+    .tape-slot::before {
+      content: '';
+      position: absolute;
+      bottom: 1px;
+      left: 8px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #ffe899;
+      box-shadow: 
+        1px 1px 1px #200d02,
+        248px 0 0 #ffe899;
+      z-index: 6;
+    }
+
+    /* Вертикальная латунная разделительная стойка-колонна между барабанами */
+    .drum-separator-pillar {
+      width: 14px;
+      height: 100%;
+      background: linear-gradient(90deg, 
+        #2a1204 0%, 
+        #6e3b08 15%, 
+        #c88e28 50%, 
+        #ffeaa3 60%, 
+        #6e3b08 85%, 
+        #2a1204 100%);
+      border-top: 2px solid #ffeaa3;
+      border-bottom: 2px solid #2a1204;
+      box-shadow: 
+        2px 0 6px rgba(0,0,0,0.8), 
+        -2px 0 6px rgba(0,0,0,0.8);
+      position: relative;
+      flex-shrink: 0;
+      z-index: 15;
+      border-radius: 2px;
+    }
+    .drum-separator-pillar::after {
+      content: '';
+      position: absolute;
+      top: 10px;
+      bottom: 10px;
+      left: 4px;
+      right: 4px;
+      background: repeating-linear-gradient(180deg, 
+        #ffe899 0px, 
+        #ffe899 4px, 
+        transparent 4px, 
+        transparent 28px);
+      opacity: 0.6;
+    }
+
+    /* Анимация пульсации выигрышной линии */
+    @keyframes paylineGlow {
+      0% { 
+        background-color: rgba(255, 224, 102, 0.95); 
+        box-shadow: 0 0 16px #ffe066, 0 0 24px #ff3b30; 
+      }
+      100% { 
+        background-color: rgba(224, 46, 27, 0.9); 
+        box-shadow: 0 0 8px #ff3b30; 
+      }
+    }
+    .payline-win-pulse {
+      animation: paylineGlow 0.15s infinite alternate !important;
+    }
+
+    /* Саспенс третьего барабана */
+    .tension-spin {
+      animation: tensionPulse 0.1s infinite alternate;
+    }
+    @keyframes tensionPulse {
+      0% { 
+        box-shadow: inset 0 0 35px #b3281a, 0 0 25px #ffe066; 
+        border-color: #ffe066;
+      }
+      100% { 
+        box-shadow: inset 0 0 55px #ffe066, 0 0 45px #b3281a; 
+        border-color: #ffffff;
+      }
+    }
+
+    /* РУЛЕТКА: ЯЧЕЙКА И ФОКУС D-PAD */
+    .roulette-cell {
+      border: 2px solid #5c280e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+    }
+    .roulette-cell:hover { filter: brightness(1.2); }
+    .roulette-cell.dpad-focus {
+      outline: 4px solid #ffe066 !important;
+      outline-offset: -2px;
+      z-index: 25;
+      animation: cellPulse 0.35s infinite alternate;
+    }
+    @keyframes cellPulse {
+      0% { filter: brightness(1.1); }
+      100% { filter: brightness(1.4); }
+    }
+    .roulette-cell.winning-cell {
+      animation: winGlow 0.2s infinite alternate;
+      z-index: 30;
+    }
+    @keyframes winGlow {
+      0% { box-shadow: inset 0 0 0 4px #ffe066, 0 0 20px #ffe066; }
+      100% { box-shadow: inset 0 0 0 4px #ffffff, 0 0 30px #ffffff; }
+    }
+
+    /* ПЛАВНЫЙ ЗУМ И ЦЕНТРОВКА КОЛЕСА РУЛЕТКИ ПРИ ВРАЩЕНИИ */
+    #roulette-wheel-container {
+      transition: transform 0.75s cubic-bezier(0.2, 0.85, 0.25, 1), box-shadow 0.75s ease;
+      transform-origin: center center;
+      will-change: transform;
+    }
+    .wheel-zoomed-center {
+      transform: translate(320px, 0) scale(2.05) !important;
+      z-index: 50 !important;
+      box-shadow: 0 0 80px rgba(0,0,0,0.95), 0 0 140px rgba(212,175,55,0.45) !important;
+    }
+
+    /* СКРЫТИЕ ИНТЕРФЕЙСА СТАВОК ВО ВРЕМЯ ВРАЩЕНИЯ РУЛЕТКИ */
+    .roulette-ui-hidden {
+      opacity: 0 !important;
+      pointer-events: none !important;
+      transform: scale(0.96);
+      transition: opacity 0.45s ease, transform 0.45s ease !important;
+    }
+    #roulette-table-container, #roulette-bottom-bar {
+      transition: opacity 0.45s ease, transform 0.45s ease;
+    }
+
+    /* АНИМАЦИЯ ВЫДАЧИ КАРТ */
+    .card-dealing {
+      animation: dealCardAnim 0.36s cubic-bezier(0.18, 0.89, 0.32, 1.1) both;
+    }
+    @keyframes dealCardAnim {
+      0% {
+        transform: translate3d(220px, -180px, 0) rotate(16deg) rotateY(180deg) scale(0.6);
+        opacity: 0;
+      }
+      60% { opacity: 1; }
+      100% {
+        transform: translate3d(0, 0, 0) rotate(0deg) rotateY(0deg) scale(1);
+        opacity: 1;
+      }
+    }
+
+    .pixel-sprite {
+      shape-rendering: crispEdges;
+      image-rendering: pixelated;
+    }
+    .text-gold { color: #ffe066; text-shadow: 2px 2px 0 #281004; }
+    .text-cream { color: #fffae8; text-shadow: 2px 2px 0 #281004; }
+
+    /* Убираем двоение текста от родительского text-shadow и центрируем жирный шрифт в круглых кнопках-подсказках */
+    .btn-key-badge,
+    button span.rounded-full,
+    .saloon-btn span.rounded-full,
+    .saloon-btn-red span.rounded-full,
+    .saloon-btn-wood span.rounded-full,
+    .saloon-btn span.rounded,
+    .saloon-btn-red span.rounded {
+      text-shadow: none !important;
+      font-weight: 900 !important;
+      line-height: 1 !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      text-align: center !important;
+    }
+  

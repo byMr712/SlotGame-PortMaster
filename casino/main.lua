@@ -74,16 +74,16 @@ function love.draw()
 
     -- 1. Фоновое дерево салуна и фактурное зеленое сукно
     ui.drawCabinet()
-    ui.drawFelt(16, 80, 992, 672)
+    ui.drawFelt(22, 78, 980, 676)
 
-    -- 2. Верхняя панель: Вкладки L1/R1 + Баланс (выровнены по бокам: x=20..1004)
+    -- 2. Верхняя панель: Вкладки L1/R1 + Баланс (выровнены по бокам: x=22..1002)
     local roomNames = { i18n.t("tab_slots"), i18n.t("tab_bj"), i18n.t("tab_roulette"), i18n.t("tab_poker") }
-    local winY = 14
-    local winH = 58
-    local boxW = 480
+    local winY = 10
+    local winH = 60
+    local boxW = 478
 
     -- Вкладка залов (широкое окно слева)
-    local leftX = 20
+    local leftX = 22
     ui.drawBrassPlaque(leftX, winY, boxW, winH, 4)
 
     local btnW = 68
@@ -103,7 +103,7 @@ function love.draw()
     local roomTextY = math.floor(winY + (winH - th) / 2)
 
     -- Левая золотая стрелка
-    ui.drawArrow(innerCenter - tw / 2 - 20, winY + winH / 2, 10, "left", {1, 0.88, 0.4, 0.95})
+    ui.drawArrow(innerCenter - tw / 2 - 16, winY + winH / 2, 12, "left", {1, 0.88, 0.4, 0.95})
 
     -- Название зала с темной тенью #180802
     love.graphics.setColor(24/255, 8/255, 2/255, 1)
@@ -112,7 +112,7 @@ function love.draw()
     love.graphics.print(curRoom, math.floor(innerCenter - tw / 2), roomTextY)
 
     -- Правая золотая стрелка
-    ui.drawArrow(innerCenter + tw / 2 + 20, winY + winH / 2, 10, "right", {1, 0.88, 0.4, 0.95})
+    ui.drawArrow(innerCenter + tw / 2 + 16, winY + winH / 2, 12, "right", {1, 0.88, 0.4, 0.95})
 
     -- Кнопка R1
     local r1X = leftX + boxW - btnW - 8

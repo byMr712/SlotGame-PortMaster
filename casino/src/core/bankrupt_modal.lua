@@ -94,10 +94,7 @@ function bankruptModal.mousepressed(x, y)
 end
 
 local fonts = require("src.core.fonts")
-
-local function getFonts()
-    return fonts.get(20), fonts.get(13)
-end
+local ui = require("src.core.ui")
 
 function bankruptModal.draw()
     if not bankruptModal.active then return end
@@ -134,30 +131,26 @@ function bankruptModal.draw()
     love.graphics.circle("fill", mx + 16, my + mh - 16, 4)
     love.graphics.circle("fill", mx + mw - 16, my + mh - 16, 4)
 
-    local oldFont = love.graphics.getFont()
-    local tFont, mFont = getFonts()
-
     -- 1. "Вы проиграли!"
-    if tFont then love.graphics.setFont(tFont) end
+    love.graphics.setFont(fonts.xl)
     local line1 = i18n.t("bankrupt_title")
-    local curFont = love.graphics.getFont()
-    local w1 = curFont:getWidth(line1)
+    local w1 = fonts.xl:getWidth(line1)
     love.graphics.setColor(0.95, 0.25, 0.2)
-    love.graphics.print(line1, mx + (mw - w1) / 2, my + 40)
+    love.graphics.print(line1, math.floor(mx + (mw - w1) / 2), my + 40)
 
     -- 2. "Вам начислено $10.000"
-    if mFont then love.graphics.setFont(mFont) end
-    curFont = love.graphics.getFont()
+    love.graphics.setFont(fonts.md)
     local line2 = i18n.t("bankrupt_msg1")
-    local w2 = curFont:getWidth(line2)
+    local w2 = fonts.md:getWidth(line2)
     love.graphics.setColor(1, 0.88, 0.3)
-    love.graphics.print(line2, mx + (mw - w2) / 2, my + 115)
+    love.graphics.print(line2, math.floor(mx + (mw - w2) / 2), my + 115)
 
     -- 3. "Попытайте удачу вновь"
+    love.graphics.setFont(fonts.sm)
     local line3 = i18n.t("bankrupt_msg2")
-    local w3 = curFont:getWidth(line3)
+    local w3 = fonts.sm:getWidth(line3)
     love.graphics.setColor(0.92, 0.82, 0.65)
-    love.graphics.print(line3, mx + (mw - w3) / 2, my + 165)
+    love.graphics.print(line3, math.floor(mx + (mw - w3) / 2), my + 165)
 
     -- Кнопка [X] "ПОНЯЛ"
     local bx = mx + (mw - 220) / 2
@@ -167,78 +160,41 @@ function bankruptModal.draw()
 
     local isLocked = (bankruptModal.lockTimer > 0)
 
-    -- Тень кнопки
-    love.graphics.setColor(0.06, 0.02, 0.01)
-    love.graphics.rectangle("fill", bx, by + 4, bw, bh, 6)
-
     if isLocked then
-        -- Серая заблокированная кнопка на первые 1.5 секунды
+        love.graphics.setColor(0.06, 0.02, 0.01)
+        love.graphics.rectangle("fill", bx, by + 4, bw, bh, 6)
         love.graphics.setColor(0.20, 0.20, 0.20)
         love.graphics.rectangle("fill", bx, by, bw, bh, 6)
         love.graphics.setColor(0.28, 0.28, 0.28)
         love.graphics.rectangle("fill", bx + 3, by + 3, bw - 6, bh - 6, 4)
-
         love.graphics.setColor(0.45, 0.45, 0.45)
         love.graphics.setLineWidth(2)
         love.graphics.rectangle("line", bx, by, bw, bh, 6)
         love.graphics.setLineWidth(1)
 
-        -- Серый значок [X]
-        love.graphics.setColor(0.40, 0.40, 0.40)
-        love.graphics.circle("fill", bx + 32, by + bh / 2, 14)
-        love.graphics.setColor(0.15, 0.15, 0.15)
-        love.graphics.circle("line", bx + 32, by + bh / 2, 14)
-        love.graphics.setColor(0.65, 0.65, 0.65)
-        if tFont then love.graphics.setFont(tFont) end
-        local cFont = love.graphics.getFont()
-        local xw = cFont and cFont:getWidth("X") or 14
-        local xh = cFont and cFont:getHeight() or 24
-        local tx = math.floor(bx + 32 - xw / 2)
-        local ty = math.floor(by + bh / 2 - xh / 2)
-        love.graphics.print("X", tx, ty)
-        love.graphics.print("X", tx + 1, ty)
-
-        -- Серый текст
-        love.graphics.setColor(0.65, 0.65, 0.65)
         local btnLabel = i18n.t("understood")
-        local bwTxt = love.graphics.getFont():getWidth(btnLabel)
-        love.graphics.print(btnLabel, bx + 64 + (bw - 84 - bwTxt) / 2, by + bh / 2 - 13)
+        love.graphics.setFont(fonts.md)
+        local bwTxt = fonts.md:getWidth(btnLabel)
+        local bhTxt = fonts.md:getHeight()
+        local totalW = 24 + 12 + bwTxt
+        local startContentX = bx + math.floor((bw - totalW) / 2)
+
+        ui.drawButtonBadge(startContentX + 12, by + bh / 2, 12, "X", 0.5, "gray")
+        love.graphics.setColor(0.65, 0.65, 0.65)
+        love.graphics.print(btnLabel, startContentX + 36, math.floor(by + (bh - bhTxt) / 2))
     else
-        -- Активное тело кнопки (салунный рубин / золото)
-        love.graphics.setColor(0.68, 0.28, 0.08)
-        love.graphics.rectangle("fill", bx, by, bw, bh, 6)
-        love.graphics.setColor(0.85, 0.45, 0.12)
-        love.graphics.rectangle("fill", bx + 3, by + 3, bw - 6, bh - 6, 4)
-
-        -- Золотая обводка
-        love.graphics.setColor(1, 0.88, 0.4)
-        love.graphics.setLineWidth(2.5)
-        love.graphics.rectangle("line", bx, by, bw, bh, 6)
-        love.graphics.setLineWidth(1)
-
-        -- Яркий значок [X]
-        love.graphics.setColor(0.32, 0.62, 0.96)
-        love.graphics.circle("fill", bx + 32, by + bh / 2, 14)
-        love.graphics.setColor(0.08, 0.03, 0.01)
-        love.graphics.circle("line", bx + 32, by + bh / 2, 14)
-        love.graphics.setColor(1, 1, 1)
-        if tFont then love.graphics.setFont(tFont) end
-        local cFont2 = love.graphics.getFont()
-        local xw2 = cFont2 and cFont2:getWidth("X") or 14
-        local xh2 = cFont2 and cFont2:getHeight() or 24
-        local tx2 = math.floor(bx + 32 - xw2 / 2)
-        local ty2 = math.floor(by + bh / 2 - xh2 / 2)
-        love.graphics.print("X", tx2, ty2)
-        love.graphics.print("X", tx2 + 1, ty2)
-
-        -- Текст "ПОНЯЛ" / "UNDERSTOOD"
-        love.graphics.setColor(1, 0.95, 0.8)
+        ui.drawSaloonButton(bx, by, bw, bh, "")
         local btnLabel = i18n.t("understood")
-        local bwTxt = love.graphics.getFont():getWidth(btnLabel)
-        love.graphics.print(btnLabel, bx + 64 + (bw - 84 - bwTxt) / 2, by + bh / 2 - 13)
-    end
+        love.graphics.setFont(fonts.md)
+        local bwTxt = fonts.md:getWidth(btnLabel)
+        local bhTxt = fonts.md:getHeight()
+        local totalW = 24 + 12 + bwTxt
+        local startContentX = bx + math.floor((bw - totalW) / 2)
 
-    love.graphics.setFont(oldFont)
+        ui.drawButtonBadge(startContentX + 12, by + bh / 2, 12, "X", 1.0, "blue")
+        love.graphics.setColor(255/255, 248/255, 235/255)
+        love.graphics.print(btnLabel, startContentX + 36, math.floor(by + (bh - bhTxt) / 2))
+    end
 end
 
 return bankruptModal

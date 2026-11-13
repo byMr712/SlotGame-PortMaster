@@ -3,6 +3,8 @@ local betModal = {}
 local economy = require("src.core.economy")
 local audio = require("src.core.audio")
 local i18n = require("src.core.i18n")
+local fonts = require("src.core.fonts")
+local ui = require("src.core.ui")
 
 betModal.active = false
 -- 10 ячеек цифр: до 9,999,999,999 (миллиарды)
@@ -360,16 +362,18 @@ function betModal.draw()
     love.graphics.rectangle("fill", mx + 10, my + 10, mw - 20, mh - 20, 8)
 
     -- Заголовок модального окна
+    love.graphics.setFont(fonts.lg)
     love.graphics.setColor(1, 0.88, 0.4)
     local title = i18n.t("set_your_bet")
-    local tw = font and font:getWidth(title) or (#title * 8)
-    love.graphics.print(title, mx + mw / 2 - tw / 2, my + 20)
+    local tw = fonts.lg:getWidth(title)
+    love.graphics.print(title, math.floor(mx + (mw - tw) / 2), my + 20)
 
     -- Баланс игрока
+    love.graphics.setFont(fonts.sm)
     local balStr = string.format("%s: %s", i18n.t("balance"), economy.getBalanceFormatted())
-    local stw = font and font:getWidth(balStr) or (#balStr * 8)
+    local stw = fonts.sm:getWidth(balStr)
     love.graphics.setColor(1, 0.88, 0.4)
-    love.graphics.print(balStr, mx + mw / 2 - stw / 2, my + 46)
+    love.graphics.print(balStr, math.floor(mx + (mw - stw) / 2), my + 46)
 
     -- 10 ячеек для цифр с разделительными точками
     local cellW = 46
@@ -418,8 +422,10 @@ function betModal.draw()
         end
 
         -- Цифра
+        love.graphics.setFont(fonts.xl)
         local dStr = tostring(betModal.digits[i])
-        local dw = font and font:getWidth(dStr) or 8
+        local dw = fonts.xl:getWidth(dStr)
+        local dh = fonts.xl:getHeight()
         if isSelected then
             love.graphics.setColor(1, 1, 1)
         else
@@ -429,13 +435,14 @@ function betModal.draw()
                 love.graphics.setColor(0.55, 0.42, 0.25)
             end
         end
-        love.graphics.print(dStr, cx + cellW / 2 - dw / 2, cy + 24)
+        love.graphics.print(dStr, math.floor(cx + (cellW - dw) / 2), math.floor(cy + (cellH - dh) / 2))
 
         -- Подпись разряда (1B, 100M, 10M, 1M, ...)
+        love.graphics.setFont(fonts.xs)
         love.graphics.setColor(0.7, 0.55, 0.3)
         local lbl = digitLabels[i]
-        local lw = font and font:getWidth(lbl) or (#lbl * 6)
-        love.graphics.print(lbl, cx + cellW / 2 - lw / 2, cy + cellH + 18)
+        local lw = fonts.xs:getWidth(lbl)
+        love.graphics.print(lbl, math.floor(cx + (cellW - lw) / 2), cy + cellH + 18)
 
         -- Стилистическая разделительная точка каждые 3 ячейки с правой стороны (после 1, 4, 7)
         if i == 1 or i == 4 or i == 7 then
@@ -451,11 +458,12 @@ function betModal.draw()
     end
 
     -- Текущая ставка и лимиты
+    love.graphics.setFont(fonts.sm)
     love.graphics.setColor(0.9, 0.8, 0.6)
     local curTotal = betModal.getTotal()
     local limStr = string.format("%s: %s   •   MIN: %s   •   MAX: %s", i18n.t("bet"), economy.format(curTotal), economy.format(betModal.minBet), economy.format(betModal.maxBet))
-    local limW = font and font:getWidth(limStr) or (#limStr * 7)
-    love.graphics.print(limStr, mx + mw / 2 - limW / 2, my + 198)
+    local limW = fonts.sm:getWidth(limStr)
+    love.graphics.print(limStr, math.floor(mx + (mw - limW) / 2), my + 198)
 
     -- Панель горячих клавиш: [L1] /2, [L2] MIN, [R2] MAX, [R1] x2
     local qy = my + 234
@@ -475,18 +483,19 @@ function betModal.draw()
         -- Тег кнопки ([L1], [L2], [R2], [R1])
         love.graphics.setColor(0.78, 0.42, 0.14)
         love.graphics.rectangle("fill", bx + 6, by + 6, 44, bh - 12, 3)
+        love.graphics.setFont(fonts.sm)
         love.graphics.setColor(1, 0.95, 0.7)
-        local tW = font and font:getWidth(tagText) or (#tagText * 8)
-        local tH = font and font:getHeight() or 14
+        local tW = fonts.sm:getWidth(tagText)
+        local tH = fonts.sm:getHeight()
         local tx = math.floor(bx + 6 + 22 - tW / 2)
         local ty = math.floor(by + bh / 2 - tH / 2)
         love.graphics.print(tagText, tx, ty)
-        love.graphics.print(tagText, tx + 1, ty)
 
         -- Текст действия (/2, MIN, MAX, x2)
+        love.graphics.setFont(fonts.sm)
         love.graphics.setColor(1, 0.88, 0.4)
-        local lW = font and font:getWidth(labelText) or (#labelText * 8)
-        love.graphics.print(labelText, bx + 54 + (bw - 60) / 2 - lW / 2, by + bh / 2 - 6)
+        local lW = fonts.sm:getWidth(labelText)
+        love.graphics.print(labelText, math.floor(bx + 54 + (bw - 60 - lW) / 2), math.floor(by + bh / 2 - 6))
     end
 
     drawQuickBtn(qStartX, qy, qw, qh, "L1", "/2")
@@ -509,25 +518,16 @@ function betModal.draw()
     love.graphics.setColor(0.35, 0.65, 0.95)
     love.graphics.rectangle("line", btn1X + 2, by + 2, bw - 4, bh - 4, 5)
 
-    local cx1 = btn1X + 26
-    local cy1 = by + bh / 2
-    love.graphics.setColor(0.32, 0.62, 0.96)
-    love.graphics.circle("fill", cx1, cy1, 13)
-    love.graphics.setColor(0.08, 0.03, 0.01)
-    love.graphics.setLineWidth(1.5)
-    love.graphics.circle("line", cx1, cy1, 13)
-    love.graphics.setLineWidth(1)
-    local xw = font and font:getWidth("X") or 8
-    local xh = font and font:getHeight() or 14
-    local tx1 = math.floor(cx1 - xw / 2)
-    local ty1 = math.floor(cy1 - xh / 2)
-    love.graphics.print("X", tx1, ty1)
-    love.graphics.print("X", tx1 + 1, ty1)
-
-    love.graphics.setColor(1, 1, 1)
     local cTxt = i18n.t("confirm")
-    local cwTxt = font and font:getWidth(cTxt) or (#cTxt * 8)
-    love.graphics.print(cTxt, btn1X + 46 + (bw - 46 - cwTxt) / 2, by + 16)
+    love.graphics.setFont(fonts.md)
+    local cwTxt = fonts.md:getWidth(cTxt)
+    local chTxt = fonts.md:getHeight()
+    local totalBtn1W = 22 + 10 + cwTxt
+    local btn1StartX = btn1X + math.floor((bw - totalBtn1W) / 2)
+    ui.drawButtonBadge(btn1StartX + 11, by + bh / 2, 11, "X", 1.0, "blue")
+    love.graphics.setFont(fonts.md)
+    love.graphics.setColor(255/255, 255/255, 255/255)
+    love.graphics.print(cTxt, btn1StartX + 32, math.floor(by + (bh - chTxt) / 2))
 
     -- Кнопка [B] BACK
     local btn2X = bStartX + bw + bgap
@@ -538,25 +538,16 @@ function betModal.draw()
     love.graphics.setColor(0.95, 0.35, 0.25)
     love.graphics.rectangle("line", btn2X + 2, by + 2, bw - 4, bh - 4, 5)
 
-    local cx2 = btn2X + 26
-    local cy2 = by + bh / 2
-    love.graphics.setColor(0.95, 0.32, 0.3)
-    love.graphics.circle("fill", cx2, cy2, 13)
-    love.graphics.setColor(0.08, 0.03, 0.01)
-    love.graphics.setLineWidth(1.5)
-    love.graphics.circle("line", cx2, cy2, 13)
-    love.graphics.setLineWidth(1)
-    local bw_k = font and font:getWidth("B") or 8
-    local bh_k = font and font:getHeight() or 14
-    local tx2 = math.floor(cx2 - bw_k / 2)
-    local ty2 = math.floor(cy2 - bh_k / 2)
-    love.graphics.print("B", tx2, ty2)
-    love.graphics.print("B", tx2 + 1, ty2)
-
-    love.graphics.setColor(1, 1, 1)
     local bTxt = i18n.t("back")
-    local bwTxt = font and font:getWidth(bTxt) or (#bTxt * 8)
-    love.graphics.print(bTxt, btn2X + 46 + (bw - 46 - bwTxt) / 2, by + 16)
+    love.graphics.setFont(fonts.md)
+    local bwTxt = fonts.md:getWidth(bTxt)
+    local bhTxt = fonts.md:getHeight()
+    local totalBtn2W = 22 + 10 + bwTxt
+    local btn2StartX = btn2X + math.floor((bw - totalBtn2W) / 2)
+    ui.drawButtonBadge(btn2StartX + 11, by + bh / 2, 11, "B", 1.0, "red")
+    love.graphics.setFont(fonts.md)
+    love.graphics.setColor(255/255, 255/255, 255/255)
+    love.graphics.print(bTxt, btn2StartX + 32, math.floor(by + (bh - bhTxt) / 2))
 end
 
 return betModal

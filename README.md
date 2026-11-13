@@ -1,2 +1,2 @@
-# SlotGame-PortMaster
+# Slot Game
 
